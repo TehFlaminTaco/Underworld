@@ -25,6 +25,7 @@ jobs:
 
     env:
       PROJECT_PATH: Underworld/Underworld.csproj
+      APP_VERSION: "ERR"
 
     steps:
       - name: Checkout
