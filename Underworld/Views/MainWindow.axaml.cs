@@ -531,7 +531,7 @@ public partial class MainWindow : Window
         {
             Title = "Name Profile",
             Width = 400,
-            Height = 300,
+            SizeToContent = SizeToContent.Height,
             Content = new StackPanel
             {
                 Margin = new Thickness(10),
