@@ -1,0 +1,56 @@
+# .github/workflows/publish-latest-release.yml
+name: Publish latest build as release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish latest artifacts as GitHub Release
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_PATH: Underworld/Underworld.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 🧠 Extract Version from csproj
+      - name: Read version from csproj
+        id: get_version
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content $env:PROJECT_PATH
+          $versionNode = $proj.Project.PropertyGroup.Version | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($versionNode)) {
+            Write-Error "No <Version> found in $env:PROJECT_PATH"
+            exit 1
+          }
+          $version = $versionNode.Trim()
+          echo "tag=v$version" >> $env:GITHUB_OUTPUT
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "Using version: $version"
+
+      - name: Download latest artifacts from build workflow
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: build-underworld.yml
+          workflow_conclusion: success
+          branch: main
+          name: ""
+          path: ./artifacts
+
+      - name: List artifacts
+        run: ls -R ./artifacts
+
+      # 🏷️ Use the extracted version as the tag_name
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.tag }}
+          name: "Underworld v${{ steps.get_version.outputs.version }}"
+          prerelease: false
+          files: artifacts/**/*
