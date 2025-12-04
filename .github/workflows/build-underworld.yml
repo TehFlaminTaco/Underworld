@@ -66,9 +66,13 @@ jobs:
       - name: Publish app
         run: dotnet publish Underworld/Underworld.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:Version=${{ env.APP_VERSION }} -o ./publish/${{ matrix.rid }}
 
+      - name: Zip publish output
+        run: |
+          cd publish/${{ matrix.rid }}
+          zip -r ../../Underworld-v${{ env.APP_VERSION }}-${{ matrix.artifact_suffix }}.zip .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Underworldv${{ steps.get_version.outputs.version }}-${{ matrix.artifact_suffix }}
-          path: publish/${{ matrix.rid }}/
-          if-no-files-found: error
+          name: Underworld-v${{ env.APP_VERSION }}-${{ matrix.artifact_suffix }}
+          path: Underworld-v${{ env.APP_VERSION }}-${{ matrix.artifact_suffix }}.zip
