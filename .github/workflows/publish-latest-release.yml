@@ -4,6 +4,9 @@ name: Publish latest build as release
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     name: Publish latest artifacts as GitHub Release
