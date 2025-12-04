@@ -173,6 +173,11 @@ public partial class MainWindow : Window
         (App.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
     }
 
+    private void OnAboutClicked(object? sender, RoutedEventArgs e)
+    {
+        ShowPopup("About", "Underworld\n\nUnderworld is a DooM launcher created by TehFlaminTaco. AI was utilized in the creation of this program and art assets.\n\nLicensed CC BY-SA 4.0");
+    }
+
     private void OnRunGameClicked(object? sender, RoutedEventArgs e)
     {
         if (_vm != null)
@@ -585,5 +590,43 @@ public partial class MainWindow : Window
                 vm.SelectedProfile = null;
             }
         }
+    }
+
+    public Task<bool> ShowPopup(string title, string text){
+        TaskCompletionSource<bool> tcs = new();
+        var okButton = new Button { Content = "OK", Width = 80, Margin = new Thickness(0,0,8,0) };
+
+        // Basic text edit dialog to name a new profile
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 400,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(10),
+                Children =
+                {
+                    new TextBlock { Text = text, Margin = new Thickness(0,0,0,8) },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Children =
+                        {
+                            okButton
+                        }
+                    }
+                }
+            }
+        };
+        okButton.Click += (_, _) =>
+        {
+            tcs.SetResult(true);
+            dlg.Close();
+        };
+        dlg.Show();
+
+        return tcs.Task;
     }
 }
