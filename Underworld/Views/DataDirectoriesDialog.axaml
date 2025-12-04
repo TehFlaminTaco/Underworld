@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Underworld.ViewModels"
+    xmlns:models="using:Underworld.Models"
+    x:Class="Underworld.Views.DataDirectoriesDialog"
+    x:DataType="vm:DataDirectoriesViewModel"
+    Title="Manage Data Folders"
+    Width="600"
+    Height="400"
+    ShowInTaskbar="False"
+    WindowStartupLocation="CenterOwner"
+    Background="#FF2D2D30">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" ColumnDefinitions="*">
+        <!-- Title -->
+        <TextBlock Grid.Row="0" Text="Data Directories (from environment variables are read-only):" 
+                   FontWeight="Bold" Foreground="White" Margin="0,0,0,8"/>
+
+        <!-- Directory List -->
+        <ListBox Grid.Row="1" Name="DirectoryList" 
+                 ItemsSource="{Binding DataDirectories}" 
+                 SelectedItem="{Binding SelectedDirectory, Mode=TwoWay}"
+                 Foreground="White"
+                 Background="#FF3F3F46">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type models:DataDirectory}">
+                    <StackPanel Orientation="Vertical" Margin="4">
+                        <TextBlock Text="{Binding Path}" Foreground="White"/>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{Binding Source}" Foreground="#FFBFBFBF" FontSize="12"/>
+                            <TextBlock Text="{Binding IsFromEnvironment, StringFormat='({0})'}" 
+                                       Foreground="#FF808080" FontSize="11"
+                                       IsVisible="{Binding IsFromEnvironment}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Name="AddButton" Content="Add Data Folder(s)" Width="150"/>
+            <Button Name="RemoveButton" Content="Remove Selected" Width="150" Command="{Binding RemoveDirectoryCommand}"/>
+            <Button Name="CloseButton" Content="Close" Width="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

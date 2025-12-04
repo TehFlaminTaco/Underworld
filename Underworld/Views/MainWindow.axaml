@@ -1,0 +1,280 @@
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Underworld.ViewModels"
+    xmlns:local="using:Underworld.Views"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:dg="using:Avalonia.Controls"
+    mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+    x:Class="Underworld.Views.MainWindow"
+    x:DataType="vm:MainWindowViewModel"
+    Icon="/Assets/underworld-logo.ico"
+    Width="1200" Height="800"
+    Title="Underworld">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <DockPanel LastChildFill="True">
+        <!-- Application menu bar (Menu control). On some platforms this will be shown as native menu. -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" Click="OnNewClicked" />
+                <MenuItem Header="_Open" Click="OnOpenClicked" />
+                    <MenuItem Header="_Save" Click="OnSaveClicked" />
+                    <MenuItem Header="Clear Cache" Click="OnClearCacheClicked" />
+                <Separator />
+                <MenuItem Header="E_xit" Click="OnExitClicked" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Cut" />
+                <MenuItem Header="_Copy" />
+                <MenuItem Header="_Paste" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Main content: split vertically into two equal rows -->
+        <Grid Background="#FF2D2D30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top half: three boxes side-by-side -->
+            <Grid Grid.Row="0" Margin="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Margin="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Executables label -->
+                        <TextBlock Text="DooM Executable" FontWeight="Bold" Foreground="White" FontSize="16"/>
+
+                        <!-- Executables list: single-select -->
+                        <ListBox Name="ExecutablesList" Grid.Row="1" SelectionMode="Single"
+                                 ItemsSource="{Binding Executables}" SelectedItem="{Binding SelectedExecutable, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" Margin="4">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="White"/>
+                                        <TextBlock Text="{Binding Path}" Foreground="#FFBFBFBF" FontSize="12"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Rename" Click="OnContextRenameClicked"/>
+                                    <MenuItem Header="Open File Location" Click="OnContextOpenLocationClicked"/>
+                                    <MenuItem Header="Delete" Click="OnContextDeleteClicked"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+
+                        <!-- Buttons -->
+                        <Grid Grid.Row="2" Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" Content="Add New Executable(s)" Command="{Binding AddExecutablesCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=local:MainWindow}}" HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="2" Content="Remove Selected Executable" Command="{Binding RemoveSelectedExecutableCommand}" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Margin="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- IWADs label -->
+                        <TextBlock Text="IWADs" FontWeight="Bold" Foreground="White" FontSize="16"/>
+
+                        <!-- IWADs list: single-select -->
+                        <ListBox Name="IWADsList" Grid.Row="1" SelectionMode="Single"
+                                 ItemsSource="{Binding IWADs}" SelectedItem="{Binding SelectedIWAD, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate >
+                                    <StackPanel Orientation="Vertical" Margin="4">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="White"/>
+                                        <TextBlock Text="{Binding Path}" Foreground="#FFBFBFBF" FontSize="12"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Margin="4">
+                    <!-- Bunch of buttons such as Run, Manage Data Folders -->
+                    <!-- Then Profile options: A Label, a list of profiles, and a row of profile buttons-->
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /> <!-- Label -->
+                            <RowDefinition Height="Auto" /> <!-- Run -->
+                            <RowDefinition Height="Auto" /> <!-- Manage Data Folders -->
+                            <RowDefinition Height="Auto" /> <!-- Profiles label -->
+                            <RowDefinition Height="*" />    <!-- Profiles list -->
+                            <RowDefinition Height="Auto" /> <!-- Profile buttons -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Actions label -->
+                        <TextBlock Text="Actions" FontWeight="Bold" Foreground="White" FontSize="16"/>
+
+                        <Button Grid.Row="1" Content="Run Game" HorizontalAlignment="Stretch" Margin="0,0,0,4" Click="OnRunGameClicked"/>
+                        <Button Grid.Row="2" Content="Manage Data Folders" Click="OnManageDataFoldersClicked" HorizontalAlignment="Stretch"/>
+
+                        <!-- Profiles label -->
+                        <TextBlock Grid.Row="3" Text="Profiles" FontWeight="Bold" Foreground="White" FontSize="16" Margin="0,8,0,0"/>
+
+                        <!-- Profiles list: single-select -->
+                        <ListBox Grid.Row="4" Name="ProfilesList" SelectionMode="Single"
+                                    ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate >
+                                        <StackPanel Orientation="Vertical" Margin="4">
+                                            <TextBlock Text="{Binding Name}" Foreground="White"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Profile buttons -->
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Stretch" Spacing="4">
+                            <Button Content="New Profile" HorizontalAlignment="Stretch" Click="OnNewProfileClicked"/>
+                            <Button Content="Remove Profile" HorizontalAlignment="Stretch" Click="OnRemoveProfileClicked"/>
+                            <CheckBox Name="ProfileLockedCheckbox" Content="Locked" IsChecked="{Binding CurrentProfileLocked, Mode=TwoWay}" IsEnabled="false" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Bottom half: split in ~~two~~ three (With add remove buttons in the middle) -->
+            <Grid Grid.Row="1" Margin="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Margin="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- WADs label -->
+                        <TextBlock Text="Available WADs" FontWeight="Bold" Foreground="White" FontSize="16"/>
+
+                        <!-- WADs DataGrid: multi-select -->
+                        <dg:DataGrid Name="WADsDataGrid1" Grid.Row="1" 
+                                     ItemsSource="{Binding FilteredAvailableWads}"
+                                     SelectionMode="Extended"
+                                     AutoGenerateColumns="False"
+                                     Background="#FF3F3F46"
+                                     Foreground="White"
+                                     RowBackground="#FF3F3F46"
+                                     BorderThickness="1"
+                                     BorderBrush="#FF555555"
+                                     CanUserReorderColumns="True"
+                                     CanUserResizeColumns="True"
+                                     CanUserSortColumns="True"
+                                     DoubleTapped="OnAvailableWADsDoubleClicked">
+                            <dg:DataGrid.Columns>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="WAD" Binding="{Binding DisplayName}" Width="*"/>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="Contains Maps" Binding="{Binding HasMaps}" Width="Auto"/>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="Path" Binding="{Binding Path}" Width="1*"/>
+                            </dg:DataGrid.Columns>
+                        </dg:DataGrid>
+
+                        <!-- Filter -->
+                        <Grid Grid.Row="2" Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" Name="WADFilterTextBox1" Watermark="Filter WADs..." TextChanged="OnAvailableWADsFilterTextChanged"/>
+                            <Button Grid.Column="2" Content="Clear Filter" Click="OnClearAvailableWADsFilterClicked"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Margin="4">
+                    <StackPanel VerticalAlignment="Center" Spacing="8">
+                        <Button Name="AddWadsButton" Content="Add WAD(s)" Width="100" Click="OnAddWadsClicked"/>
+                        <Button Name="RemoveWadsButton" Content="Remove WAD(s)" Width="100" Click="OnRemoveWadsClicked"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Margin="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- WADs label -->
+                        <TextBlock Text="Selected WADs" FontWeight="Bold" Foreground="White" FontSize="16"/>
+
+                        <!-- WADs DataGrid: multi-select -->
+                        <dg:DataGrid Name="WADsDataGrid2" Grid.Row="1" 
+                                     ItemsSource="{Binding FilteredSelectedWads}"
+                                     SelectionMode="Extended"
+                                     AutoGenerateColumns="False"
+                                     Background="#FF3F3F46"
+                                     Foreground="White"
+                                     RowBackground="#FF3F3F46"
+                                     BorderThickness="1"
+                                     BorderBrush="#FF555555"
+                                     CanUserReorderColumns="True"
+                                     CanUserResizeColumns="True"
+                                     CanUserSortColumns="True"
+                                     DoubleTapped="OnSelectedWADsDoubleClicked">
+                            <dg:DataGrid.Columns>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="WAD" Binding="{Binding DisplayName}" Width="*"/>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="Contains Maps" Binding="{Binding HasMaps}" Width="Auto"/>
+                                <dg:DataGridTextColumn IsReadOnly="True" Header="Path" Binding="{Binding Path}" Width="1*"/>
+                            </dg:DataGrid.Columns>
+                        </dg:DataGrid>
+
+                        <!-- Filter -->
+                        <Grid Grid.Row="2" Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" Name="WADFilterTextBox2" Watermark="Filter WADs..." TextChanged="OnSelectedWADsFilterTextChanged"/>
+                            <Button Grid.Column="2" Content="Clear Filter" Click="OnClearSelectedWADsFilterClicked"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+
+</Window>

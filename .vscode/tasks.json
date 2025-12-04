@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "dotnet",
+			"task": "build /home/ataco/Desktop/Underworld/Underworld/Underworld.csproj",
+			"file": "/home/ataco/Desktop/Underworld/Underworld/Underworld.csproj",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "dotnet: build /home/ataco/Desktop/Underworld/Underworld/Underworld.csproj"
+		}
+	]
+}
