@@ -23,6 +23,13 @@ public partial class DataDirectoriesDialog: Window
         this.DataContext = _viewModel;
     }
 
+    // Keep the compiler happy
+    [Obsolete("Use DataDirectoriesDialog(MainWindow)")]
+    public DataDirectoriesDialog()
+    {
+        throw new Exception("Utilizing incorrect constructor!");
+    }
+
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);

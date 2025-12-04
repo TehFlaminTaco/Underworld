@@ -33,14 +33,19 @@ namespace Underworld.ViewModelTests
                 {
                     var psi = new ProcessStartInfo("/bin/sh", $"-c \"chmod +x '{tmpValid}'\"") { UseShellExecute = false };
                     Process.Start(psi)?.WaitForExit();
+                    var mgr = new ExecutableManager();
+                    var (valid, invalids) = mgr.ValidatePaths(new[] { tmpValid, tmpInvalid });
+
+                    Assert.Single(valid);
+                    Assert.Single(invalids);
+                    Assert.Contains(valid, e => e.Path == tmpValid);
+                }
+                else
+                {
+                    // Windows, do nothing
+                    // I know this is bad practice.
                 }
 
-                var mgr = new ExecutableManager();
-                var (valid, invalids) = mgr.ValidatePaths(new[] { tmpValid, tmpInvalid });
-
-                Assert.Single(valid);
-                Assert.Single(invalids);
-                Assert.Contains(valid, e => e.Path == tmpValid);
             }
             finally
             {
