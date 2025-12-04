@@ -37,23 +37,19 @@ jobs:
           # Change if you're on another major version
           dotnet-version: "9.0.x"
 
-      - name: Read app version from csproj
+      - name: Read version from csproj
         id: get_version
         shell: pwsh
         run: |
           [xml]$proj = Get-Content $env:PROJECT_PATH
-          $versionNode = ($proj.Project.PropertyGroup | Where-Object { $_.Version }).Version
-          $version = $versionNode[0]
-          if (-not $version) {
-            $version = "0.0.0"
+          $versionNode = $proj.Project.PropertyGroup.Version | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($versionNode)) {
+            Write-Error "No <Version> found in $env:PROJECT_PATH"
+            exit 1
           }
-          Write-Host "Detected app version: $version"
-
-          # Make it available as a step output
+          $version = $versionNode.Trim()
           echo "version=$version" >> $env:GITHUB_OUTPUT
-
-          # And as an env var for later steps (optional)
-          echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+          echo "Using version: $version"
 
       - name: Restore dependencies
         run: dotnet restore Underworld/Underworld.csproj
