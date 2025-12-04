@@ -1,0 +1,79 @@
+name: Build Underworld
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact_suffix: linux-x64
+          - os: windows-latest
+            rid: win-x64
+            artifact_suffix: win-x64
+
+    env:
+      PROJECT_PATH: Underworld/Underworld.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # Change if you're on another major version
+          dotnet-version: "9.0.x"
+
+      - name: Read app version from csproj
+        id: get_version
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content $env:PROJECT_PATH
+          $versionNode = ($proj.Project.PropertyGroup | Where-Object { $_.Version }).Version
+          $version = $versionNode[0]
+          if (-not $version) {
+            $version = "0.0.0"
+          }
+          Write-Host "Detected app version: $version"
+
+          # Make it available as a step output
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+          # And as an env var for later steps (optional)
+          echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Restore dependencies
+        run: dotnet restore Underworld/Underworld.csproj
+
+      - name: Run tests
+        run: |
+          dotnet test Underworld.Tests/Underworld.Tests.csproj --configuration Release
+          dotnet test Underworld.ViewModelTests/Underworld.ViewModelTests.csproj --configuration Release
+
+      - name: Publish app
+        run: |
+          dotnet publish Underworld/Underworld.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -o ./publish/${{ matrix.rid }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Underworldv${{ steps.get_version.outputs.version }}-${{ matrix.artifact_suffix }}
+          path: publish/${{ matrix.rid }}/
+          if-no-files-found: error
