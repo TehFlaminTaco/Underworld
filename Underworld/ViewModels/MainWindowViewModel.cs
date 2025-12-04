@@ -147,12 +147,15 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<SelectWadInfo> FilteredSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
     public ObservableCollection<SelectWadInfo> SelectedItemsSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
 
+
+    private static ExecutableItem? SELECTED_EXECUTABLE; // More Dirty hacks
     private ExecutableItem? _selectedExecutable;
     public ExecutableItem? SelectedExecutable
     {
         get => _selectedExecutable;
         set
         {
+            SELECTED_EXECUTABLE = value;
             _lastSelectedExecutablePathConfig.Set(value?.Path ?? string.Empty);
             if(SelectedProfile is not null){
                 SelectedProfile.PreferredExecutable = value?.Path ?? string.Empty;
@@ -164,12 +167,14 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private static IWad? SELECTED_IWAD; // Even more dirty hacks
     private IWad? _selectedIWad;
     public IWad? SelectedIWAD
     {
         get => _selectedIWad;
         set
         {
+            SELECTED_IWAD = value;
             if(SelectedProfile is not null){
                 SelectedProfile.PreferredIWAD = value?.Path ?? string.Empty;
             }
@@ -514,10 +519,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public Task<bool> ShowConfirmDialogue(string title, string text){
+    public Task<bool> ShowConfirmDialogue(string title, string text, string okText = "OK", string cancelText = "Cancel"){
         TaskCompletionSource<bool> tcs = new();
-        var okButton = new Button { Content = "OK", Width = 80, Margin = new Thickness(0,0,8,0) };
-        var cancelButton = new Button { Content = "Cancel", Width = 80 };
+        var okButton = new Button { Content = okText, Width = 80, Margin = new Thickness(0,0,8,0) };
+        var cancelButton = new Button { Content = cancelText, Width = 80 };
 
         // Basic text edit dialog to name a new profile
         var dlg = new Window
@@ -561,12 +566,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async void RunGame()
     {
-        if (SelectedExecutable == null)
+        if (SELECTED_EXECUTABLE == null)
         {
             ShowFailDialogue("No executable selected.");
             return;
         }
-        if (SelectedIWAD == null)
+        if (SELECTED_IWAD == null)
         {
             ShowFailDialogue("No IWAD selected.");
             return;
@@ -588,7 +593,7 @@ public partial class MainWindowViewModel : ViewModelBase
             foreach(var c in Path.GetInvalidFileNameChars())
                 saveFolder = saveFolder.Replace(c, '-');
         }else{
-            if (!await ShowConfirmDialogue("Run Game", "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?")){
+            if (!await ShowConfirmDialogue("Run Game", "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?", "Yes", "Cancel")){
                 return;
             }
         }
@@ -605,7 +610,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             // Build command line arguments
-            string args = $"-iwad \"{SelectedIWAD.Path}\"";
+            string args = $"-iwad \"{SELECTED_IWAD.Path}\"";
             var selected = AllWads.Where(w => w.IsSelected).ToList();
             if(selected.Count > 0){
                 args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";
@@ -616,11 +621,11 @@ public partial class MainWindowViewModel : ViewModelBase
             }
             saveFolder = Path.GetFullPath($"./saves/{saveFolder}");
             args += $" -savedir \"{saveFolder}\"";
-            Console.WriteLine($"Running game: {SelectedExecutable.Path} {args}");
+            Console.WriteLine($"Running game: {SELECTED_EXECUTABLE.Path} {args}");
             // TODO: Custom savedir with profiles.
             var cmd = new ProcessStartInfo
             {
-                FileName = SelectedExecutable.Path,
+                FileName = SELECTED_EXECUTABLE.Path,
                 Arguments = string.Join(" ", args),
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

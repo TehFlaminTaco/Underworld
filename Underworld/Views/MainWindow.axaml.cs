@@ -412,6 +412,8 @@ public partial class MainWindow : Window
                     });
                 }
             }
+            // Clear the cache manually.
+            OnClearCacheClicked(sender, e);
         };
         await dialog.ShowDialog(this);
     }
