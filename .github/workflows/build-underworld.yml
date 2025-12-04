@@ -49,6 +49,7 @@ jobs:
           }
           $version = $versionNode.Trim()
           echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "APP_VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "Using version: $version"
 
       - name: Restore dependencies
