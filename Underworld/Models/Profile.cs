@@ -20,5 +20,9 @@ public partial class Profile : ObservableObject
 
     [ObservableProperty]
     public ObservableCollection<string> selectedWads = new ObservableCollection<string>();
+
+    [ObservableProperty]
+    public string commandLineArguments = string.Empty;
+
     public override string ToString() => Name;
 }

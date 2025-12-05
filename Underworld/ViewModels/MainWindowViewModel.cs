@@ -228,6 +228,27 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private static string COMMAND_LINE_ARGUMENTS = string.Empty;
+    private string _commandLineArguments = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the command line arguments for the game.
+    /// These are saved per profile and can be referenced when launching the game.
+    /// </summary>
+    public string CommandLineArguments
+    {
+        get => _commandLineArguments;
+        set
+        {
+            COMMAND_LINE_ARGUMENTS = value;
+            if (SelectedProfile is not null)
+            {
+                SelectedProfile.CommandLineArguments = value;
+            }
+            SetProperty(ref _commandLineArguments, value);
+        }
+    }
+
     private static Profile? SELECTED_PROFILE;
     private Profile? _selectedProfile;
 
@@ -271,6 +292,11 @@ public partial class MainWindowViewModel : ViewModelBase
                         SelectedIWAD = iwad;
                     }
                 }
+
+                // Restore command line arguments
+                _commandLineArguments = value.CommandLineArguments;
+                COMMAND_LINE_ARGUMENTS = value.CommandLineArguments;
+                OnPropertyChanged(nameof(CommandLineArguments));
             }
             SELECTED_PROFILE = value;
             SetProperty(ref _selectedProfile, value);
@@ -953,16 +979,19 @@ public partial class MainWindowViewModel : ViewModelBase
         string args = $"-iwad \"{SELECTED_IWAD!.Path}\"";
 
         var selected = AllWads.Where(w => w.IsSelected).ToList();
-        if (selected.Count == 0)
+        if (selected.Count > 0)
         {
-            ShowFailDialogue("No WADs selected to load.");
-            return null;
+            args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";
         }
-
-        args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";
 
         var fullSavePath = Path.GetFullPath($"./saves/{saveFolder}");
         args += $" -savedir \"{fullSavePath}\"";
+
+        // Add custom command line arguments if present
+        if (!string.IsNullOrWhiteSpace(COMMAND_LINE_ARGUMENTS))
+        {
+            args += $" {COMMAND_LINE_ARGUMENTS}";
+        }
 
         return args;
     }

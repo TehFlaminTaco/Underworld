@@ -7,9 +7,9 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InternalsVisibleTo>Underworld.ViewModelTests</InternalsVisibleTo>
     <ApplicationIcon>Assets/underworld-logo.ico</ApplicationIcon>
-    <Version>1.3.1</Version>
-    <AssemblyVersion>1.3.1</AssemblyVersion>
-    <FileVersion>1.3.1</FileVersion>
+    <Version>1.3.2</Version>
+    <AssemblyVersion>1.3.2</AssemblyVersion>
+    <FileVersion>1.3.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
