@@ -135,8 +135,6 @@ Underworld/
 - **Cross-Platform Validation**: Platform-specific executable detection
 - **Profile Management**: Isolated save directories per profile
 
-See `.vscode/AGENT_README.md` for comprehensive development documentation.
-
 ### Publishing
 
 ```bash
