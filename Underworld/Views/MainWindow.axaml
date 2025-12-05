@@ -150,9 +150,7 @@
                                     ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate >
-                                        <StackPanel Orientation="Vertical" Margin="4">
-                                            <TextBlock Text="{Binding Name}" Foreground="White"/>
-                                        </StackPanel>
+                                        <TextBlock Text="{Binding Name}" Foreground="White"/>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                         </ListBox>

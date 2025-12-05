@@ -22,6 +22,9 @@ jobs:
           - os: windows-latest
             rid: win-x64
             artifact_suffix: win-x64
+          - os: macos-latest
+            rid: osx-x64
+            artifact_suffix: osx-x64
 
     env:
       PROJECT_PATH: Underworld/Underworld.csproj
@@ -66,6 +69,13 @@ jobs:
       # Linux: use 'zip'
       - name: Zip publish output (Linux)
         if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd publish/${{ matrix.rid }}
+          zip -r ../../Underworld-v${{ env.APP_VERSION }}-${{ matrix.artifact_suffix }}.zip .
+
+      # macOS: use 'zip'
+      - name: Zip publish output (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
           cd publish/${{ matrix.rid }}
           zip -r ../../Underworld-v${{ env.APP_VERSION }}-${{ matrix.artifact_suffix }}.zip .
