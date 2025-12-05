@@ -8,13 +8,14 @@ using Underworld.ViewModels;
 namespace Underworld.Models;
 
 // Serializable Profile for JSON support
+[Serializable]
 public class ExportProfile
 {
-    public string Name = String.Empty;
-    public string PreferredExecutable = String.Empty;
-    public string PreferredIWAD = String.Empty;
+    public string Name { get; set; } = String.Empty;
+    public string PreferredExecutable { get; set; } = String.Empty;
+    public string PreferredIWAD { get; set; } = String.Empty;
 
-    public List<string> SelectedWADs = new();
+    public List<string> SelectedWADs { get; set; } = new();
 
     public static ExportProfile From(Profile profile)
     {
@@ -51,13 +52,14 @@ public class ExportProfile
 
         if (PreferredIWAD is not null)
         {
-            var iwad = MainWindowViewModel.AllWads.FirstOrDefault(c=>Path.GetFileName(c.Path) == PreferredIWAD);
+            var allWads = WadLists.GetAllWads();
+            var iwad = allWads.FirstOrDefault(c=>Path.GetFileName(c) == PreferredIWAD);
             if(iwad is null)
             {
-                failReason = $"Preferred Executable for profile ({PreferredIWAD}) not found.";
+                failReason = $"Preferred IWAD for profile ({PreferredIWAD}) not found.";
                 return (null, failReason);
             }
-            profile.PreferredIWAD = PreferredIWAD;
+            profile.PreferredIWAD = iwad;
         }
 
         foreach(var wad in SelectedWADs)

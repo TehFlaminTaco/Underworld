@@ -23,6 +23,9 @@
                 <!-- TODO: <MenuItem Header="_New" Click="OnNewClicked" /> -->
                 <!-- TODO: <MenuItem Header="_Open" Click="OnOpenClicked" /> -->
                 <!-- TODO: <MenuItem Header="_Save" Click="OnSaveClicked" /> -->
+                <MenuItem Header="_Export Profile" Command="{Binding ExportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
+                <MenuItem Header="_Import Profile" Command="{Binding ImportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
+                <Separator />
                 <MenuItem Header="Clear WAD Cache" Click="OnClearCacheClicked" />
                 <Separator />
                 <MenuItem Header="E_xit" Click="OnExitClicked" />

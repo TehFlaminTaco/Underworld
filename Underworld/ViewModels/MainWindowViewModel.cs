@@ -43,6 +43,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RemoveSelectedExecutableCommand = new RelayCommand(_ => RemoveSelectedExecutable(), _ => SelectedExecutable != null);
         AddExecutablesCommand = new RelayCommand(p => { _ = AddExecutablesFromWindowAsync(p); });
+        ExportProfileCommand = new RelayCommand(p => { _ = ExportProfileAsync(p); }, _ => SelectedProfile != null);
+        ImportProfileCommand = new RelayCommand(p => { _ = ImportProfileAsync(p); });
 
         AllWads.Clear();
 
@@ -230,6 +232,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ICommand RemoveSelectedExecutableCommand { get; }
     public ICommand AddExecutablesCommand { get; }
     public ICommand RunGameCommand => new RelayCommand(_ => RunGame(), _ => SelectedExecutable != null && SelectedIWAD != null);
+    public ICommand ExportProfileCommand { get; }
+    public ICommand ImportProfileCommand { get; }
 
     public bool CurrentProfileLocked {
         get => SelectedProfile?.Locked ?? false;
@@ -328,6 +332,131 @@ public partial class MainWindowViewModel : ViewModelBase
         catch
         {
             // ignore UI errors
+        }
+    }
+
+    private async Task ExportProfileAsync(object? parameter)
+    {
+        if (parameter is not Window win)
+            return;
+
+        if (SelectedProfile == null)
+            return;
+
+        try
+        {
+            var provider = win.StorageProvider;
+            if (provider == null || !provider.CanSave)
+                return;
+
+            var options = new FilePickerSaveOptions
+            {
+                Title = "Export Profile",
+                SuggestedFileName = $"{SelectedProfile.Name}.uw-profile.json",
+                DefaultExtension = "json",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("Underworld Profile")
+                    {
+                        Patterns = new[] { "*.uw-profile.json" }
+                    }
+                }
+            };
+
+            var file = await provider.SaveFilePickerAsync(options);
+            if (file == null)
+                return;
+
+            var exportProfile = ExportProfile.From(SelectedProfile);
+            var json = System.Text.Json.JsonSerializer.Serialize(exportProfile, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            
+            await using var stream = await file.OpenWriteAsync();
+            await using var writer = new System.IO.StreamWriter(stream);
+            await writer.WriteAsync(json);
+        }
+        catch (Exception ex)
+        {
+            ShowFailDialogue($"Failed to export profile: {ex.Message}");
+        }
+    }
+
+    private async Task ImportProfileAsync(object? parameter)
+    {
+        if (parameter is not Window win)
+            return;
+
+        try
+        {
+            var provider = win.StorageProvider;
+            if (provider == null || !provider.CanOpen)
+                return;
+
+            var options = new FilePickerOpenOptions
+            {
+                Title = "Import Profile",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Underworld Profile")
+                    {
+                        Patterns = new[] { "*.uw-profile.json" }
+                    }
+                }
+            };
+
+            var files = await provider.OpenFilePickerAsync(options);
+            if (files == null || files.Count == 0)
+                return;
+
+            var file = files[0];
+            try
+            {
+                await using var stream = await file.OpenReadAsync();
+                using var reader = new System.IO.StreamReader(stream);
+                var json = await reader.ReadToEndAsync();
+
+                var exportProfile = System.Text.Json.JsonSerializer.Deserialize<ExportProfile>(json);
+                if (exportProfile == null)
+                {
+                    ShowFailDialogue("Failed to parse profile file.");
+                    return;
+                }
+
+                var (profile, failReason) = exportProfile.To();
+                if (profile == null)
+                {
+                    ShowFailDialogue($"Failed to import profile: {failReason}");
+                    return;
+                }
+
+                // Check if profile with same name already exists
+                if (Profiles.Any(p => p.Name == profile.Name))
+                {
+                    var overwrite = await ShowConfirmDialogue(
+                        "Profile Exists",
+                        $"A profile named '{profile.Name}' already exists. Overwrite?",
+                        "Overwrite",
+                        "Cancel"
+                    );
+
+                    if (!overwrite)
+                        return;
+
+                    var existing = Profiles.First(p => p.Name == profile.Name);
+                    Profiles.Remove(existing);
+                }
+
+                Profiles.Add(profile);
+                SelectedProfile = profile;
+            }
+            finally
+            {
+                file.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowFailDialogue($"Failed to import profile: {ex.Message}");
         }
     }
 
