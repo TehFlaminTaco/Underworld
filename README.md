@@ -117,8 +117,6 @@ Underworld/
 │   └── Assets/                    # Icons and resources
 ├── Underworld.Tests/              # Unit tests for managers
 ├── Underworld.ViewModelTests/     # ViewModel integration tests
-└── .vscode/                       # VS Code configuration
-    └── AGENT_README.md            # Detailed developer guide
 ```
 
 ### Technology Stack
