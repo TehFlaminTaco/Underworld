@@ -94,9 +94,6 @@ dotnet build Underworld/Underworld.csproj
 
 # Run
 dotnet run --project Underworld/Underworld.csproj
-
-# Run on Linux with X11 (if Wayland issues)
-GDK_BACKEND=x11 dotnet run --project Underworld/Underworld.csproj
 ```
 
 ### Testing
