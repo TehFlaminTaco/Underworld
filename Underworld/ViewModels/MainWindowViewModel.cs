@@ -248,6 +248,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if(checkbox is not null)
                     checkbox.IsEnabled = value is not null;
             }
+            _selectedProfile = null; // Unset for the duration.
             if (value != null){
                 // Set the appropriate settings from the profile.
                 foreach(var wad in AllWads)

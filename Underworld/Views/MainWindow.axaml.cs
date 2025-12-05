@@ -37,6 +37,9 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object? sender, RoutedEventArgs e)
     {
+        // Check if data directories are configured
+        CheckDataDirectoriesOnStartup();
+
         // Sync DataGrid selections with ViewModel collections
         var wadGrid1 = this.FindControl<DataGrid>("WADsDataGrid1");
         if (wadGrid1 != null)
@@ -606,6 +609,85 @@ public partial class MainWindow : Window
                 vm.SelectedProfile = null;
             }
         }
+    }
+
+    private async void CheckDataDirectoriesOnStartup()
+    {
+        // Load data directories configuration to check if any exist
+        var dataDirectoriesConfig = Config.Setup("dataDirectories", new System.Collections.Generic.List<string>());
+        var dirs = dataDirectoriesConfig.Get();
+        
+        // Check if there are no user-configured directories and no environment variables
+        var envVar = Environment.GetEnvironmentVariable("DOOMWADDIR");
+        var envPath = Environment.GetEnvironmentVariable("DOOMWADPATH");
+        
+        bool hasDataDirectories = (dirs != null && dirs.Count > 0) || 
+                                  (!string.IsNullOrEmpty(envVar) && Directory.Exists(envVar)) ||
+                                  (!string.IsNullOrEmpty(envPath));
+        
+        if (!hasDataDirectories)
+        {
+            var result = await ShowConfirmDialog(
+                "No Data Folders Configured",
+                "No data folders have been configured. Would you like to set them up now?\n\n" +
+                "Data folders tell Underworld where to find your WAD files (DOOM.WAD, mods, etc.).",
+                "Yes, Configure Now",
+                "Skip");
+            
+            if (result)
+            {
+                // Open the data folders dialog
+                OnManageDataFoldersClicked(this, new RoutedEventArgs());
+            }
+        }
+    }
+
+    private Task<bool> ShowConfirmDialog(string title, string text, string yesText, string noText)
+    {
+        TaskCompletionSource<bool> tcs = new();
+        var yesButton = new Button { Content = yesText, MinWidth = 120, Margin = new Thickness(0,0,8,0) };
+        var noButton = new Button { Content = noText, MinWidth = 80 };
+
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 500,
+            SizeToContent = SizeToContent.Height,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(10),
+                Children =
+                {
+                    new TextBlock { Text = text, Margin = new Thickness(0,0,0,12), TextWrapping = TextWrapping.Wrap },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Children =
+                        {
+                            yesButton,
+                            noButton
+                        }
+                    }
+                }
+            }
+        };
+        
+        yesButton.Click += (_, _) =>
+        {
+            tcs.SetResult(true);
+            dlg.Close();
+        };
+        
+        noButton.Click += (_, _) =>
+        {
+            tcs.SetResult(false);
+            dlg.Close();
+        };
+        
+        dlg.Show();
+
+        return tcs.Task;
     }
 
     public Task<bool> ShowPopup(string title, string text){
