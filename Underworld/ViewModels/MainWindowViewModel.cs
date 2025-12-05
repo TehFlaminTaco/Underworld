@@ -15,6 +15,10 @@ using Avalonia.Layout;
 
 namespace Underworld.ViewModels;
 
+/// <summary>
+/// Main view model for the Underworld launcher application.
+/// Manages executables, IWADs, PWADs, profiles, and game launching.
+/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ExecutableManager _manager = new ExecutableManager();
@@ -133,25 +137,59 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Gets the collection of available game executables.
+    /// </summary>
     public ObservableCollection<ExecutableItem> Executables { get; } = new ObservableCollection<ExecutableItem>();
 
+    /// <summary>
+    /// Gets the collection of available IWADs (main game data files).
+    /// </summary>
     public ObservableCollection<IWad> IWADs { get; } = new ObservableCollection<IWad>();
 
+    /// <summary>
+    /// Gets the collection of saved game profiles.
+    /// </summary>
     public ObservableCollection<Profile> Profiles { get; } = new ObservableCollection<Profile>();
 
-    // Available WADs (IsSelected = false)
+    /// <summary>
+    /// Gets the master list of all discovered WAD files.
+    /// </summary>
     public static List<SelectWadInfo> AllWads { get; } = new List<SelectWadInfo>();
+
+    /// <summary>
+    /// Gets the filtered collection of available (unselected) WADs.
+    /// </summary>
     public ObservableCollection<SelectWadInfo> FilteredAvailableWads { get; } = new ObservableCollection<SelectWadInfo>();
+
+    /// <summary>
+    /// Gets the collection of items selected in the available WADs list.
+    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedItemsAvailableWads { get; } = new ObservableCollection<SelectWadInfo>();
 
-    // Selected WADs (IsSelected = true)
+    /// <summary>
+    /// Gets the collection of selected WADs.
+    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
+
+    /// <summary>
+    /// Gets the filtered collection of selected WADs.
+    /// </summary>
     public ObservableCollection<SelectWadInfo> FilteredSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
+
+    /// <summary>
+    /// Gets the collection of items selected in the selected WADs list.
+    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedItemsSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
 
 
-    private static ExecutableItem? SELECTED_EXECUTABLE; // More Dirty hacks
+    private static ExecutableItem? SELECTED_EXECUTABLE;
     private ExecutableItem? _selectedExecutable;
+
+    /// <summary>
+    /// Gets or sets the currently selected game executable.
+    /// Updates the last selected path in config and the current profile's preferred executable.
+    /// </summary>
     public ExecutableItem? SelectedExecutable
     {
         get => _selectedExecutable;
@@ -169,8 +207,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static IWad? SELECTED_IWAD; // Even more dirty hacks
+    private static IWad? SELECTED_IWAD;
     private IWad? _selectedIWad;
+
+    /// <summary>
+    /// Gets or sets the currently selected IWAD.
+    /// Updates the last selected path in config and the current profile's preferred IWAD.
+    /// </summary>
     public IWad? SelectedIWAD
     {
         get => _selectedIWad;
@@ -185,9 +228,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static Profile? SELECTED_PROFILE; // Dirty hack. b/c I cannot be arsed trying to sync this.
-
+    private static Profile? SELECTED_PROFILE;
     private Profile? _selectedProfile;
+
+    /// <summary>
+    /// Gets or sets the currently selected profile.
+    /// When set, applies the profile's WAD selection, preferred executable, and preferred IWAD.
+    /// </summary>
     public Profile? SelectedProfile
     {
         get => _selectedProfile;
@@ -229,13 +276,38 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Gets the command to remove the currently selected executable.
+    /// </summary>
     public ICommand RemoveSelectedExecutableCommand { get; }
+
+    /// <summary>
+    /// Gets the command to add new executables via file picker.
+    /// </summary>
     public ICommand AddExecutablesCommand { get; }
+
+    /// <summary>
+    /// Gets the command to launch the game.
+    /// Enabled only when both an executable and IWAD are selected.
+    /// </summary>
     public ICommand RunGameCommand => new RelayCommand(_ => RunGame(), _ => SelectedExecutable != null && SelectedIWAD != null);
+
+    /// <summary>
+    /// Gets the command to export the current profile to a JSON file.
+    /// </summary>
     public ICommand ExportProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to import a profile from a JSON file.
+    /// </summary>
     public ICommand ImportProfileCommand { get; }
 
-    public bool CurrentProfileLocked {
+    /// <summary>
+    /// Gets or sets whether the current profile is locked.
+    /// A locked profile prevents accidental modification.
+    /// </summary>
+    public bool CurrentProfileLocked
+    {
         get => SelectedProfile?.Locked ?? false;
         set {
             if (SelectedProfile != null)
@@ -247,9 +319,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Add a set of file paths: validate them and add valid entries to the manager/observable collection.
-    /// Returns list of invalid reasons for the caller to present to the user.
+    /// Validates and adds executable file paths to the manager and observable collection.
     /// </summary>
+    /// <param name="paths">The file paths to validate and add.</param>
+    /// <returns>A list of error messages for invalid paths.</returns>
     public List<string> AddExecutables(IEnumerable<string> paths)
     {
         var (valid, invalids) = _manager.ValidatePaths(paths);
@@ -460,6 +533,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Persists the current list of executables to configuration.
+    /// Silently ignores save errors.
+    /// </summary>
     private void SaveExecutablesConfig()
     {
         try
@@ -472,6 +549,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Attempts to persist the current list of profiles to configuration.
+    /// Silently ignores save errors.
+    /// </summary>
     private void TrySaveProfiles()
     {
         try
@@ -484,6 +565,9 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Removes the currently selected executable from the manager and collection.
+    /// </summary>
     private void RemoveSelectedExecutable()
     {
         if (SelectedExecutable == null)
@@ -496,10 +580,23 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    // Add wads directly from a provided selection (avoids relying on a synced SelectedItems collection)
+    /// <summary>
+    /// Marks the provided WADs as selected and updates the filtered collections.
+    /// This avoids relying on synced SelectedItems collections.
+    /// If the current profile is locked, this operation is blocked.
+    /// </summary>
+    /// <param name="items">The WADs to mark as selected.</param>
     public void AddWadsFromItems(IEnumerable<SelectWadInfo> items)
     {
         Console.WriteLine($"\n=== AddWadsFromItems() called (VM hash {this.GetHashCode()}) ===");
+        
+        // Block if profile is locked
+        if (SelectedProfile?.Locked == true)
+        {
+            Console.WriteLine("AddWadsFromItems blocked: Profile is locked");
+            return;
+        }
+        
         var list = items?.ToList() ?? new List<SelectWadInfo>();
         Console.WriteLine($"Items passed: {list.Count}");
         foreach (var wadInfo in list)
@@ -512,8 +609,20 @@ public partial class MainWindowViewModel : ViewModelBase
         Console.WriteLine("=== AddWadsFromItems() done ===\n");
     }
 
+    /// <summary>
+    /// Marks the provided WADs as unselected and updates the filtered collections.
+    /// If the current profile is locked, this operation is blocked.
+    /// </summary>
+    /// <param name="items">The WADs to mark as unselected.</param>
     public void RemoveWadsFromItems(IEnumerable<SelectWadInfo> items)
     {
+        // Block if profile is locked
+        if (SelectedProfile?.Locked == true)
+        {
+            Console.WriteLine("RemoveWadsFromItems blocked: Profile is locked");
+            return;
+        }
+        
         var list = items?.ToList() ?? new List<SelectWadInfo>();
         foreach (var wadInfo in list)
         {
@@ -523,6 +632,11 @@ public partial class MainWindowViewModel : ViewModelBase
         UpdateSelectedWadsFilter();
     }
 
+    /// <summary>
+    /// Handles changes to WAD selection status, moving WADs between available and selected collections
+    /// and updating the selected profile if one is active.
+    /// </summary>
+    /// <param name="wadInfo">The WAD whose selection status changed.</param>
     public void OnWadSelectionChanged(SelectWadInfo wadInfo)
     {
         Console.WriteLine($"Wad selection changed: {wadInfo.DisplayName}, IsSelected={wadInfo.IsSelected}");
@@ -554,61 +668,48 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Updates the filtered list of available (unselected) WADs based on the filter text.
+    /// If filterText is not provided, attempts to retrieve it from the WADFilterTextBox1 control.
+    /// </summary>
+    /// <param name="filterText">Optional filter text to search for in WAD names and filenames.</param>
     public void UpdateAvailableWadsFilter(string? filterText = null)
     {
-        if (filterText == null) // Find the FilterText from the search box if not provided
+        if (filterText == null)
         {
             Console.WriteLine("UpdateAvailableWadsFilter: filterText is null, trying to get from TextBox");
-            // How the hell do I get the TextBox value from here? Ugh.
-            // Step 1. Get the main window
-            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
-            if (mainWindow != null){
-                Console.WriteLine("Main window found");
-                // Step 2. Find the WADFilterTextBox1
-                var filterBox = mainWindow.FindControl<TextBox>("WADFilterTextBox1");
-                if (filterBox != null){
-                    Console.WriteLine("Filter TextBox found");
-                    filterText = filterBox.Text;
-                }
-            }
+            filterText = GetFilterTextFromControl("WADFilterTextBox1");
         }
         FilteredAvailableWads.Clear();
         var availableWads = AllWads.Where(w => !w.IsSelected);
         var filtered = string.IsNullOrWhiteSpace(filterText)
             ? availableWads
-            : availableWads.Where(w => w.DisplayName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                        w.Filename.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0);
+            : availableWads.Where(w => w.DisplayName.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        w.Filename.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0);
 
-        foreach (var wad in filtered)
+        foreach (var wad in filtered.ToList())
         {
             FilteredAvailableWads.Add(wad);
         }
     }
 
+    /// <summary>
+    /// Updates the filtered list of selected WADs based on the filter text.
+    /// If filterText is not provided, attempts to retrieve it from the WADFilterTextBox2 control.
+    /// </summary>
+    /// <param name="filterText">Optional filter text to search for in WAD names and filenames.</param>
     public void UpdateSelectedWadsFilter(string? filterText = null)
     {
-        if (filterText == null) // Find the FilterText from the search box if not provided
+        if (filterText == null)
         {
-            // Step 1. Get the main window
-            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
-            if (mainWindow != null){
-                // Step 2. Find the WADFilterTextBox2
-                var filterBox = mainWindow.FindControl<TextBox>("WADFilterTextBox2");
-                if (filterBox != null){
-                    filterText = filterBox.Text;
-                }
-            }
+            filterText = GetFilterTextFromControl("WADFilterTextBox2");
         }
         FilteredSelectedWads.Clear();
         var selectedWads = AllWads.Where(w => w.IsSelected);
         var filtered = string.IsNullOrWhiteSpace(filterText)
             ? selectedWads
-            : selectedWads.Where(w => w.DisplayName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                       w.Filename.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0);
+            : selectedWads.Where(w => w.DisplayName.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                       w.Filename.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0);
 
         foreach (var wad in filtered)
         {
@@ -616,8 +717,12 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void ShowFailDialogue(string failReason){
-        // Show a simple modal dialog from the UI window
+    /// <summary>
+    /// Shows an error dialog with the specified failure reason.
+    /// </summary>
+    /// <param name="failReason">The error message to display.</param>
+    private void ShowFailDialogue(string failReason)
+    {
         var dlg = new Window
         {
             Title = "Cannot run game",
@@ -638,17 +743,23 @@ public partial class MainWindowViewModel : ViewModelBase
         var ok = (dlg.Content as StackPanel)!.Children.OfType<Button>().First();
         ok.Click += (_, _) => dlg.Close();
 
-        // Find the main window to show dialog over
-        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow
-            : null;
+        var mainWindow = GetMainWindow();
         if (mainWindow != null)
         {
             dlg.ShowDialog(mainWindow);
         }
     }
 
-    public Task<bool> ShowConfirmDialogue(string title, string text, string okText = "OK", string cancelText = "Cancel"){
+    /// <summary>
+    /// Shows a confirmation dialog with customizable title, message, and button text.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="text">The message to display.</param>
+    /// <param name="okText">The text for the OK button.</param>
+    /// <param name="cancelText">The text for the Cancel button.</param>
+    /// <returns>True if OK was clicked, false if Cancel was clicked.</returns>
+    public Task<bool> ShowConfirmDialogue(string title, string text, string okText = "OK", string cancelText = "Cancel")
+    {
         TaskCompletionSource<bool> tcs = new();
         var okButton = new Button { Content = okText, Width = 80, Margin = new Thickness(0,0,8,0) };
         var cancelButton = new Button { Content = cancelText, Width = 80 };
@@ -693,6 +804,42 @@ public partial class MainWindowViewModel : ViewModelBase
         return tcs.Task;
     }
 
+    /// <summary>
+    /// Gets the main application window.
+    /// </summary>
+    /// <returns>The main window, or null if not available.</returns>
+    private Window? GetMainWindow()
+    {
+        return Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow
+            : null;
+    }
+
+    /// <summary>
+    /// Retrieves filter text from a named TextBox control in the main window.
+    /// </summary>
+    /// <param name="controlName">The name of the TextBox control.</param>
+    /// <returns>The text from the control, or null if not found.</returns>
+    private string? GetFilterTextFromControl(string controlName)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow != null)
+        {
+            Console.WriteLine("Main window found");
+            var filterBox = mainWindow.FindControl<TextBox>(controlName);
+            if (filterBox != null)
+            {
+                Console.WriteLine("Filter TextBox found");
+                return filterBox.Text;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Launches the game with the selected executable, IWAD, and WADs.
+    /// Creates a save folder for the selected profile and builds appropriate command-line arguments.
+    /// </summary>
     public async void RunGame()
     {
         if (SELECTED_EXECUTABLE == null)
@@ -706,76 +853,149 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        // Check that a ./saves folder exists, create it otherwise.
-        if(!Directory.Exists("./saves")){
-            try {
-                Directory.CreateDirectory("./saves");
-            }catch{
-                ShowFailDialogue("Failed to create new saves folder!");
-                return;
-            }
-        }
+        if (!EnsureSavesDirectoryExists())
+            return;
 
-        var saveFolder = "_unsorted";
-        if(SELECTED_PROFILE is not null){
-            saveFolder = SELECTED_PROFILE.Name;
-            foreach(var c in Path.GetInvalidFileNameChars())
-                saveFolder = saveFolder.Replace(c, '-');
-        }else{
-            if (!await ShowConfirmDialogue("Run Game", "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?", "Yes", "Cancel")){
-                return;
-            }
-        }
+        var saveFolder = await DetermineSaveFolder();
+        if (saveFolder == null)
+            return;
 
-        if (!Directory.Exists($"./saves/{saveFolder}")){
-            try {
-                Directory.CreateDirectory($"./saves/{saveFolder}");
-            }catch{
-                ShowFailDialogue($"Failed to create new save folder: ./saves/{saveFolder}!");
-                return;
-            }
-        }
+        if (!CreateSaveFolderIfNeeded(saveFolder))
+            return;
+
+        var commandLineArgs = BuildGameCommandLineArgs(saveFolder);
+        if (commandLineArgs == null)
+            return;
+
+        LaunchGameProcess(commandLineArgs);
+    }
+
+    /// <summary>
+    /// Ensures the ./saves directory exists, creating it if necessary.
+    /// </summary>
+    /// <returns>True if the directory exists or was created successfully, false otherwise.</returns>
+    private bool EnsureSavesDirectoryExists()
+    {
+        if (Directory.Exists("./saves"))
+            return true;
 
         try
         {
-            // Build command line arguments
-            string args = $"-iwad \"{SELECTED_IWAD.Path}\"";
-            var selected = AllWads.Where(w => w.IsSelected).ToList();
-            if(selected.Count > 0){
-                args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";
-            }else{
-                // No WADs selected, warn and abort
-                ShowFailDialogue("No WADs selected to load.");
-                return;
-            }
-            saveFolder = Path.GetFullPath($"./saves/{saveFolder}");
-            args += $" -savedir \"{saveFolder}\"";
-            Console.WriteLine($"Running game: {SELECTED_EXECUTABLE.Path} {args}");
-            // TODO: Custom savedir with profiles.
+            Directory.CreateDirectory("./saves");
+            return true;
+        }
+        catch
+        {
+            ShowFailDialogue("Failed to create new saves folder!");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines the save folder name based on the selected profile.
+    /// Prompts the user if no profile is selected.
+    /// </summary>
+    /// <returns>The save folder name, or null if the user cancelled.</returns>
+    private async Task<string?> DetermineSaveFolder()
+    {
+        if (SELECTED_PROFILE is not null)
+        {
+            var saveFolder = SELECTED_PROFILE.Name;
+            foreach (var c in Path.GetInvalidFileNameChars())
+                saveFolder = saveFolder.Replace(c, '-');
+            return saveFolder;
+        }
+
+        var proceed = await ShowConfirmDialogue(
+            "Run Game",
+            "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?",
+            "Yes",
+            "Cancel");
+
+        return proceed ? "_unsorted" : null;
+    }
+
+    /// <summary>
+    /// Creates the save folder if it doesn't exist.
+    /// </summary>
+    /// <param name=\"saveFolder\">The save folder name (not full path).</param>
+    /// <returns>True if the folder exists or was created successfully, false otherwise.</returns>
+    private bool CreateSaveFolderIfNeeded(string saveFolder)
+    {
+        var folderPath = $"./saves/{saveFolder}";
+        if (Directory.Exists(folderPath))
+            return true;
+
+        try
+        {
+            Directory.CreateDirectory(folderPath);
+            return true;
+        }
+        catch
+        {
+            ShowFailDialogue($"Failed to create new save folder: {folderPath}!");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Builds the command-line arguments for launching the game.
+    /// </summary>
+    /// <param name=\"saveFolder\">The save folder name (not full path).</param>
+    /// <returns>The complete command-line arguments string, or null if no WADs are selected.</returns>
+    private string? BuildGameCommandLineArgs(string saveFolder)
+    {
+        string args = $"-iwad \"{SELECTED_IWAD!.Path}\"";
+
+        var selected = AllWads.Where(w => w.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            ShowFailDialogue("No WADs selected to load.");
+            return null;
+        }
+
+        args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";
+
+        var fullSavePath = Path.GetFullPath($"./saves/{saveFolder}");
+        args += $" -savedir \"{fullSavePath}\"";
+
+        return args;
+    }
+
+    /// <summary>
+    /// Launches the game process with the specified command-line arguments.
+    /// </summary>
+    /// <param name=\"commandLineArgs\">The command-line arguments to pass to the executable.</param>
+    private void LaunchGameProcess(string commandLineArgs)
+    {
+        try
+        {
+            Console.WriteLine($"Running game: {SELECTED_EXECUTABLE!.Path} {commandLineArgs}");
+
             var cmd = new ProcessStartInfo
             {
                 FileName = SELECTED_EXECUTABLE.Path,
-                Arguments = string.Join(" ", args),
+                Arguments = commandLineArgs,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+
             var proc = Process.Start(cmd);
-            if(proc == null){
+            if (proc == null)
+            {            
                 ShowFailDialogue("Failed to start the game process.");
                 return;
             }
-            // Redirect output to console for now
+
             proc.OutputDataReceived += (sender, e) => { if (e.Data != null) Console.WriteLine(e.Data); };
             proc.BeginOutputReadLine();
             proc.ErrorDataReceived += (sender, e) => { if (e.Data != null) Console.WriteLine($"ERR: {e.Data}"); };
             proc.BeginErrorReadLine();
-
         }
         catch (Exception ex)
         {
             ShowFailDialogue($"An error occurred while trying to run the game: {ex.Message}");
         }
-
     }
 }

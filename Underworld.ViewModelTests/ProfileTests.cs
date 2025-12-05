@@ -8,6 +8,7 @@ using Underworld.ViewModels;
 
 namespace Underworld.ViewModelTests
 {
+    [Collection("Non-Parallel Collection")]
     public class ProfileTests : IDisposable
     {
         public ProfileTests()

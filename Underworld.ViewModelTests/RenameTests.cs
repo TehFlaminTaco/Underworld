@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 
 namespace Underworld.ViewModelTests
 {
+    [Collection("Non-Parallel Collection")]
     public class RenameTests : IDisposable
     {
         public RenameTests()

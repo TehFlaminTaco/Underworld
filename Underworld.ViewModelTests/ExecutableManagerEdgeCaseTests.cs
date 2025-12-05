@@ -8,6 +8,7 @@ using Underworld.Models;
 
 namespace Underworld.ViewModelTests
 {
+    [Collection("Non-Parallel Collection")]
     public class ExecutableManagerEdgeCaseTests : IDisposable
     {
         [Fact]

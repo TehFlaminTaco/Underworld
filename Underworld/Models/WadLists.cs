@@ -1,41 +1,60 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Underworld.Models;
 using Underworld.ViewModels;
 
 namespace Underworld.Models;
 
+/// <summary>
+/// Manages discovery and caching of WAD files across configured data directories.
+/// </summary>
 public static class WadLists
 {
+    private const string ZScriptPattern = "zscript.*";
+    
+    /// <summary>
+    /// Valid file extensions for WAD files.
+    /// </summary>
+    public static readonly string[]                                                              ValidWADFiles = { ".wad", ".pk3", ".zip", ".pk7" };
+
+    /// <summary>
+    /// Persistent cache of WAD file information.
+    /// </summary>
     public static ConfigEntry<Dictionary<string, WadInfo>> WadInfoCache =
         Config.Setup("wadInfoCache", new Dictionary<string, WadInfo>());
+
+    /// <summary>
+    /// Gets all configured data directories from the DataDirectoriesViewModel.
+    /// </summary>
+    /// <returns>List of unique directory paths</returns>
     public static List<string> GetDataDirectories()
     {
         var data = new DataDirectoriesViewModel();
         data.LoadDirectories();
         return data.DataDirectories.Select(d => d.Path).Distinct().ToList();
     }
+
+    /// <summary>
+    /// Clears the WAD cache and repopulates it with current data directories.
+    /// </summary>
     public static void ClearWadCache()
     {
         WadInfoCache.Set(new Dictionary<string, WadInfo>());
         GetNewWadInfos();
     }
 
-    public static string[] ValidWADFiles = [
-        ".wad", ".pk3", ".zip" // TODO: Pk7. It's a dumb extension though. 
-    ];
-
+    /// <summary>
+    /// Discovers all WAD files in configured data directories.
+    /// Includes files with valid extensions and directories containing ZScript files.
+    /// </summary>
+    /// <returns>List of unique WAD file/directory paths</returns>
     public static List<string> GetAllWads()
     {
         var dataDirs = GetDataDirectories();
-        // A file is considered a wad if it has a valid extension
-        // A folder is considered a wad if it contains a `zscript.*` file.
-        // This is an improper way to detect folders, but there is no better way currently.
-
-        List<string> wadPaths = new();
+        var wadPaths = new List<string>();
 
         foreach (var dir in dataDirs)
         {
@@ -44,305 +63,462 @@ public static class WadLists
 
             try
             {
-                var files = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
-                foreach (var file in files)
-                {
-                    var ext = Path.GetExtension(file).ToLowerInvariant();
-                    if (ValidWADFiles.Contains(ext))
-                    {
-                        wadPaths.Add(file);
-                    }
-                }
-
-                var directories = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
-                foreach (var folder in directories)
-                {
-                    var zscriptFiles = Directory.GetFiles(folder, "zscript.*", SearchOption.TopDirectoryOnly);
-                    if (zscriptFiles.Length > 0)
-                    {
-                        wadPaths.Add(folder);
-                    }
-                }
+                DiscoverWadsInDirectory(dir, wadPaths);
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore directories we can't access
-                Console.Error.WriteLine($"Could not access directory: {dir}");
+                Console.Error.WriteLine($"Could not access directory '{dir}': {ex.Message}");
             }
         }
 
         return wadPaths.Distinct().ToList();
     }
 
+    /// <summary>
+    /// Populates the WAD info cache with all discovered WADs.
+    /// </summary>
     public static void GetNewWadInfos()
     {
         var wads = GetAllWads();
         foreach (var wad in wads)
+        {
             GetWadInfo(wad);
+        }
     }
 
-    private static Dictionary<string, string>? _iwadNamesCache = null;
-    private static readonly Regex IWADNameRegex = new Regex(@"\bIWADName\s*=\s*""([^""]+)""", RegexOptions.Compiled);
-    private static readonly Regex NameRegex = new Regex(@"\bName\s*=\s*""([^""]+)""", RegexOptions.Compiled);
-    public static Dictionary<string, string> GetIWADNames() {
-        if (_iwadNamesCache != null)
-            return _iwadNamesCache;
-
-
-        // Check all datadirectories for an archive called game_support.pk3
-        // And grab the iwadwadinfo.txt out of it.
-        var iwadNames = new Dictionary<string, string>();
-        var dataDirs = GetDataDirectories();
-        string? gameSupportPK3 = null;
-        foreach (var dir in dataDirs){
-            try
+    /// <summary>
+    /// Discovers WAD files and directories in a single directory.
+    /// </summary>
+    private static void DiscoverWadsInDirectory(string directory, List<string> wadPaths)
+    {
+        // Find WAD files by extension
+        var files = Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var file in files)
+        {
+            if (IsValidWadFile(file))
             {
-                var pk3Path = Path.Combine(dir, "game_support.pk3");
-                if (File.Exists(pk3Path))
-                {
-                    gameSupportPK3 = pk3Path;
-                    break;
-                }
-            }
-            catch
-            {
-                // Ignore errors reading the archive
-                Console.Error.WriteLine($"Could not access directory: {dir}");
-                return new();
+                wadPaths.Add(file);
             }
         }
-        if (gameSupportPK3 == null){
-            Console.Error.WriteLine("No game_support.pk3 found in data directories.");
-            return new(); // No game_support.pk3 found. Return empty dictionary.
-            // IMPORTANT, don't cache this version so we can update it with new added data directories.
+
+        // Find directories containing ZScript files (folder-based mods)
+        var directories = Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var folder in directories)
+        {
+            if (IsZScriptDirectory(folder))
+            {
+                wadPaths.Add(folder);
+            }
         }
+    }
+
+    /// <summary>
+    /// Checks if a file has a valid WAD extension.
+    /// </summary>
+    private static bool IsValidWadFile(string path)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        return ValidWADFiles.Contains(extension);
+    }
+
+    /// <summary>
+    /// Checks if a directory contains ZScript files, indicating it's a folder-based mod.
+    /// </summary>
+    private static bool IsZScriptDirectory(string directory)
+    {
         try
         {
-            using var archive = System.IO.Compression.ZipFile.OpenRead(gameSupportPK3);
-            var iwadInfoEntry = archive.Entries.FirstOrDefault(e => e.FullName.Equals("iwadinfo.txt", StringComparison.OrdinalIgnoreCase));
-            if (iwadInfoEntry != null)
-            {
-                using var reader = new StreamReader(iwadInfoEntry.Open());
-                // Wad entries look like:
-                /*
-                IWad
-                {
-                    Name = "Freedoom: Phase 2"
-                    Autoname = "doom.freedoom.phase2"
-                    Game = "Doom"
-                    Config = "Doom"
-                    IWADName = "freedoom2.wad"
-                    Mapinfo = "mapinfo/doom2.txt"
-                    MustContain = "MAP01", "FREEDOOM"
-                    BannerColors = "32 54 43", "c6 dc d1"
-                    SkipBexStringsIfLanguage
-                }
-                */
-                // For each of these, extract the IWADName and Name fields.
-                string? currentIWADName = null;
-                string? currentName = null;
-                while (!reader.EndOfStream){
-                    var line = reader.ReadLine()?.Trim();
-                    if (line == null)
-                        continue;
-                    if (line.StartsWith("IWad")){
-                        // Find the next line starting with {
-                        while(!reader.EndOfStream){
-                            line = reader.ReadLine()?.Trim();
-                            if (line == "{")
-                                break;
-                        }
-                        // Iterate through each line until we find }
-                        // if it's a Name = "value" or IWADName = "value", store it.
-                        while(!reader.EndOfStream){
-                            line = reader.ReadLine()?.Trim();
-                            if (line == null)
-                                continue;
-                            if (line == "}")
-                                break;
-                            var iwadMatch = IWADNameRegex.Match(line);
-                            if (iwadMatch.Success){
-                                currentIWADName = iwadMatch.Groups[1].Value;
-                            }
-                            var nameMatch = NameRegex.Match(line);
-                            if (nameMatch.Success){
-                                currentName = nameMatch.Groups[1].Value;
-                            }
-                        }
-                        if (currentIWADName != null && currentName != null){
-                            iwadNames[currentIWADName.ToLowerInvariant()] = currentName;
-                        }else{
-                            Console.Error.WriteLine("Malformed IWAD entry in iwadinfo.txt");
-                            Console.Error.WriteLine($"IWADName: {currentIWADName}, Name: {currentName}");
-                        }
-                        currentIWADName = null;
-                        currentName = null;
-                    }
-                }
-            }else{
-                Console.Error.WriteLine($"No iwadinfo.txt found in {gameSupportPK3}");
-                return new(); // No iwadinfo.txt found. Return empty dictionary.
-            }
-            // Assuming all went well, cache the result
-            _iwadNamesCache = iwadNames;
-            return iwadNames;
+            var zscriptFiles = Directory.GetFiles(directory, ZScriptPattern, SearchOption.TopDirectoryOnly);
+            return zscriptFiles.Length > 0;
         }
         catch
         {
-            // Ignore errors reading the archive
-            Console.Error.WriteLine("Could not read game_support.pk3 for IWAD names.");
+            return false;
         }
-        return new();
     }
 
+    private const string GameSupportArchive = "game_support.pk3";
+    private const string IWadInfoFile = "iwadinfo.txt";
+    
+    private static Dictionary<string, string>? _iwadNamesCache = null;
+    private static readonly Regex IWADNameRegex = new(@"\bIWADName\s*=\s*""([^""]+)""", RegexOptions.Compiled);
+    private static readonly Regex NameRegex = new(@"\bName\s*=\s*""([^""]+)""", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Gets a dictionary mapping IWAD filenames to their display names.
+    /// Data is parsed from game_support.pk3/iwadinfo.txt if found in data directories.
+    /// Results are cached after first successful read.
+    /// </summary>
+    /// <returns>Dictionary of IWAD filename (lowercase) to display name mappings</returns>
+    public static Dictionary<string, string> GetIWADNames()
+    {
+        if (_iwadNamesCache != null)
+            return _iwadNamesCache;
+
+        var gameSupportPath = FindGameSupportArchive();
+        if (gameSupportPath == null)
+        {
+            Console.Error.WriteLine($"No {GameSupportArchive} found in data directories.");
+            return new Dictionary<string, string>();
+        }
+
+        try
+        {
+            var iwadNames = ParseIWadInfoFromArchive(gameSupportPath);
+            _iwadNamesCache = iwadNames;
+            return iwadNames;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not read {GameSupportArchive} for IWAD names: {ex.Message}");
+            return new Dictionary<string, string>();
+        }
+    }
+
+    /// <summary>
+    /// Searches data directories for the game_support.pk3 archive.
+    /// </summary>
+    /// <returns>Full path to game_support.pk3 or null if not found</returns>
+    private static string? FindGameSupportArchive()
+    {
+        var dataDirs = GetDataDirectories();
+        
+        foreach (var dir in dataDirs)
+        {
+            try
+            {
+                var pk3Path = Path.Combine(dir, GameSupportArchive);
+                if (File.Exists(pk3Path))
+                {
+                    return pk3Path;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Could not access directory '{dir}': {ex.Message}");
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses iwadinfo.txt from the game_support.pk3 archive.
+    /// </summary>
+    private static Dictionary<string, string> ParseIWadInfoFromArchive(string archivePath)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+        var iwadInfoEntry = archive.Entries
+            .FirstOrDefault(e => e.FullName.Equals(IWadInfoFile, StringComparison.OrdinalIgnoreCase));
+
+        if (iwadInfoEntry == null)
+        {
+            Console.Error.WriteLine($"No {IWadInfoFile} found in {archivePath}");
+            return new Dictionary<string, string>();
+        }
+
+        using var reader = new StreamReader(iwadInfoEntry.Open());
+        return ParseIWadInfoContent(reader);
+    }
+
+    /// <summary>
+    /// Parses IWAD entries from iwadinfo.txt content.
+    /// Each entry contains IWADName and Name properties that map filename to display name.
+    /// </summary>
+    private static Dictionary<string, string> ParseIWadInfoContent(StreamReader reader)
+    {
+        var iwadNames = new Dictionary<string, string>();
+
+        while (!reader.EndOfStream)
+        {
+            var line = reader.ReadLine()?.Trim();
+            if (line != null && line.StartsWith("IWad", StringComparison.OrdinalIgnoreCase))
+            {
+                var iwadEntry = ParseSingleIWadEntry(reader);
+                if (iwadEntry.HasValue)
+                {
+                    iwadNames[iwadEntry.Value.FileName.ToLowerInvariant()] = iwadEntry.Value.DisplayName;
+                }
+            }
+        }
+
+        return iwadNames;
+    }
+
+    /// <summary>
+    /// Parses a single IWAD entry block from iwadinfo.txt.
+    /// </summary>
+    private static (string FileName, string DisplayName)? ParseSingleIWadEntry(StreamReader reader)
+    {
+        // Skip to opening brace
+        while (!reader.EndOfStream)
+        {
+            var line = reader.ReadLine()?.Trim();
+            if (line == "{")
+                break;
+        }
+
+        string? iwadFileName = null;
+        string? displayName = null;
+
+        // Read properties until closing brace
+        while (!reader.EndOfStream)
+        {
+            var line = reader.ReadLine()?.Trim();
+            if (string.IsNullOrEmpty(line))
+                continue;
+                
+            if (line == "}")
+                break;
+
+            var iwadMatch = IWADNameRegex.Match(line);
+            if (iwadMatch.Success)
+            {
+                iwadFileName = iwadMatch.Groups[1].Value;
+            }
+
+            var nameMatch = NameRegex.Match(line);
+            if (nameMatch.Success)
+            {
+                displayName = nameMatch.Groups[1].Value;
+            }
+        }
+
+        if (iwadFileName != null && displayName != null)
+        {
+            return (iwadFileName, displayName);
+        }
+
+        Console.Error.WriteLine($"Malformed IWAD entry - IWADName: {iwadFileName}, Name: {displayName}");
+        return null;
+    }
+
+    /// <summary>
+    /// Gets metadata information about a WAD file or directory.
+    /// Results are cached for performance.
+    /// </summary>
+    /// <param name="path">Path to the WAD file or directory</param>
+    /// <returns>WadInfo containing metadata about the WAD</returns>
     public static WadInfo GetWadInfo(string path)
     {
         var cache = WadInfoCache.Get();
+        
         if (cache.ContainsKey(path))
         {
             return cache[path];
         }
 
-        bool IsPatch = true;
-        bool HasMaps = false;
-
-        // Depending on the file type, we may be able to determine if it's an IWAD or PWAD
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        switch (ext) {
-            case "":
-                // Folder - assume PWAD
-                IsPatch = true;
-                // Check if there's a /maps/ folder
-                var mapsDir = System.IO.Path.Combine(path, "maps");;
-                if (Directory.Exists(mapsDir))
-                {
-                    // Check if any file/folder called MAP01 or E1M1 (Optionally .wad) exists
-                    var mapEntries = Directory.GetFileSystemEntries(mapsDir, "*", SearchOption.TopDirectoryOnly);
-                    foreach (var entry in mapEntries)
-                    {
-                        var mapName = Path.GetFileNameWithoutExtension(entry).ToUpperInvariant();
-                        if (mapName == "MAP01" || mapName == "E1M1")
-                        {
-                            HasMaps = true;
-                            break;
-                        }
-                    }
-                }
-                break;
-            case ".wad":
-                // WAD file - read header
-                try
-                {
-                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-                    using var br = new BinaryReader(fs);
-                    var id = new string(br.ReadChars(4));
-                    if (id == "IWAD"){
-                        IsPatch = false;
-                        HasMaps = true; // IWADs always have maps. Hopefully.
-                    }else{
-                        // Search for a lump named "MAP01" to "MAP99" or "E1M1" to "E4M9"
-                        var numLumps = br.ReadInt32(); // numlumps
-                        var dirOffset = br.ReadInt32(); // infotableofs
-                        fs.Seek(dirOffset, SeekOrigin.Begin);
-                        for (int i = 0; i < numLumps; i++){
-                            var lumpOffset = br.ReadInt32();
-                            var lumpSize = br.ReadInt32();
-                            var lumpNameChars = br.ReadChars(8);
-                            var lumpName = new string(lumpNameChars).TrimEnd('\0').ToUpperInvariant();
-                            if (lumpName == "MAP01" || lumpName == "E1M1"){
-                                HasMaps = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // Ignore errors reading the file
-                    Console.Error.WriteLine($"Could not read WAD file: {path}");
-                }
-                break;
-            case ".pk3":
-            case ".zip":
-            case ".pk7":
-                // No such thing as an IWAD in these formats, right?
-                IsPatch = true;
-                // PK3/ZIP/PK7 - check for maps inside the archive
-                // Use the same "Is there a /maps/ folder" logic
-                try
-                {
-                    using var archive = System.IO.Compression.ZipFile.OpenRead(path);
-                    var mapsEntry = archive.Entries.FirstOrDefault(e => e.FullName.StartsWith("maps/") || e.FullName.StartsWith("Maps/"));
-                    if (mapsEntry != null)
-                    {
-                        // Check for children in mapEntry named MAP01 or E1M1 inside the maps folder
-                        var mapEntries = archive.Entries.Where(e => e.FullName.StartsWith(mapsEntry.FullName));
-                        foreach (var entry in mapEntries)
-                        {
-                            var mapName = Path.GetFileNameWithoutExtension(entry.Name).ToUpperInvariant();
-                            if (mapName == "MAP01" || mapName == "E1M1")
-                            {
-                                HasMaps = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // Ignore errors reading the archive
-                    Console.Error.WriteLine($"Could not read archive file: {path}");
-                }
-                break;
-            default:
-                // Unknown file type - assume PWAD and hope for the best.
-                IsPatch = true;
-                break;
-        }
-
-
-        var name = Path.GetFileName(path);
-        if (!IsPatch){
-            var iwadNames = GetIWADNames();
-            var key = Path.GetFileName(path).ToLowerInvariant();
-            Console.WriteLine($"Getting IWAD name for {key}");
-            if (iwadNames.ContainsKey(key)){
-                name = iwadNames[key];
-                Console.WriteLine($"Found IWAD name for {key}: {name}");
-            }else{
-                Console.WriteLine($"No IWAD name found for {path}, using filename.");
-            }
-        }
-
-        var info = new WadInfo
-        {
-            Path = path,
-            Name = name,
-            IsPatch = IsPatch,
-            HasMaps = HasMaps
-        };
-
+        var info = AnalyzeWadFile(path);
+        
         cache[path] = info;
         WadInfoCache.Set(cache);
 
         return info;
     }
 
-    public static IEnumerable<WadInfo> IWADs => WadInfoCache.Get().Values.Where(c=>!c.IsPatch);
+    /// <summary>
+    /// Analyzes a WAD file or directory to determine its properties.
+    /// </summary>
+    private static WadInfo AnalyzeWadFile(string path)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        
+        var (isPatch, hasMaps) = extension switch
+        {
+            "" => AnalyzeDirectory(path),
+            ".wad" => AnalyzeWadArchive(path),
+            ".pk3" or ".zip" or ".pk7" => AnalyzeZipArchive(path),
+            _ => (true, false) // Unknown type - assume PWAD
+        };
 
+        var displayName = DetermineDisplayName(path, isPatch);
+
+        return new WadInfo
+        {
+            Path = path,
+            Name = displayName,
+            IsPatch = isPatch,
+            HasMaps = hasMaps
+        };
+    }
+
+    /// <summary>
+    /// Analyzes a directory (folder-based mod) for map content.
+    /// </summary>
+    private static (bool IsPatch, bool HasMaps) AnalyzeDirectory(string path)
+    {
+        var mapsDir = Path.Combine(path, "maps");
+        if (!Directory.Exists(mapsDir))
+        {
+            return (true, false);
+        }
+
+        try
+        {
+            var mapEntries = Directory.GetFileSystemEntries(mapsDir, "*", SearchOption.TopDirectoryOnly);
+            bool hasMaps = mapEntries.Any(entry => IsStartMap(Path.GetFileNameWithoutExtension(entry)));
+            return (true, hasMaps);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not read maps directory in '{path}': {ex.Message}");
+            return (true, false);
+        }
+    }
+
+    /// <summary>
+    /// Analyzes a .wad file by reading its header and directory.
+    /// </summary>
+    private static (bool IsPatch, bool HasMaps) AnalyzeWadArchive(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var br = new BinaryReader(fs);
+            
+            var header = new string(br.ReadChars(4));
+            
+            if (header == "IWAD")
+            {
+                return (false, true); // IWADs always have maps
+            }
+            
+            // PWAD - check for map lumps
+            var numLumps = br.ReadInt32();
+            var dirOffset = br.ReadInt32();
+            
+            bool hasMaps = SearchWadDirectory(br, fs, dirOffset, numLumps);
+            return (true, hasMaps);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not read WAD file '{path}': {ex.Message}");
+            return (true, false);
+        }
+    }
+
+    /// <summary>
+    /// Searches a WAD directory for map markers.
+    /// </summary>
+    private static bool SearchWadDirectory(BinaryReader reader, FileStream stream, int dirOffset, int numLumps)
+    {
+        stream.Seek(dirOffset, SeekOrigin.Begin);
+        
+        for (int i = 0; i < numLumps; i++)
+        {
+            reader.ReadInt32(); // lumpOffset
+            reader.ReadInt32(); // lumpSize
+            var lumpName = new string(reader.ReadChars(8)).TrimEnd('\0').ToUpperInvariant();
+            
+            if (IsStartMap(lumpName))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /// <summary>
+    /// Analyzes a ZIP/PK3/PK7 archive for map content.
+    /// </summary>
+    private static (bool IsPatch, bool HasMaps) AnalyzeZipArchive(string path)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            
+            var mapEntries = archive.Entries
+                .Where(e => e.FullName.StartsWith("maps/", StringComparison.OrdinalIgnoreCase));
+            
+            bool hasMaps = mapEntries.Any(entry => 
+                IsStartMap(Path.GetFileNameWithoutExtension(entry.Name)));
+            
+            return (true, hasMaps);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not read archive file '{path}': {ex.Message}");
+            return (true, false);
+        }
+    }
+
+    /// <summary>
+    /// Checks if a map name represents a starting map (MAP01 or E1M1).
+    /// </summary>
+    private static bool IsStartMap(string mapName)
+    {
+        var upperName = mapName.ToUpperInvariant();
+        return upperName == "MAP01" || upperName == "E1M1";
+    }
+
+    /// <summary>
+    /// Determines the display name for a WAD.
+    /// IWADs use names from iwadinfo.txt if available, PWADs use filename.
+    /// </summary>
+    private static string DetermineDisplayName(string path, bool isPatch)
+    {
+        var filename = Path.GetFileName(path);
+        
+        if (isPatch)
+        {
+            return filename;
+        }
+
+        // IWAD - try to get friendly name
+        var iwadNames = GetIWADNames();
+        var key = filename.ToLowerInvariant();
+        
+        if (iwadNames.ContainsKey(key))
+        {
+            Console.WriteLine($"Found IWAD name for '{key}': {iwadNames[key]}");
+            return iwadNames[key];
+        }
+
+        Console.WriteLine($"No IWAD name found for '{path}', using filename.");
+        return filename;
+    }
+
+    /// <summary>
+    /// Gets all cached IWADs (non-patch WADs).
+    /// </summary>
+    public static IEnumerable<WadInfo> IWADs => WadInfoCache.Get().Values.Where(w => !w.IsPatch);
 }
 
-// Stores information about a wad. Serializable to be stored in config.
+/// <summary>
+/// Contains metadata about a WAD file or directory.
+/// Serializable for storage in configuration.
+/// </summary>
 public class WadInfo
 {
-    public string Path { get; set; } = string.Empty; // Full path to the wad file
-    public string Name { get; set; } = string.Empty; // Name of the wad
+    /// <summary>
+    /// Gets or sets the full path to the WAD file or directory.
+    /// </summary>
+    public string Path { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets the display name of the WAD.
+    /// For IWADs, this may be a friendly name from iwadinfo.txt.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 
-    public bool IsPatch { get; set; } // Whether this wad is an IWAD or a PWAD
-    public bool HasMaps { get; set; } // Whether this wad contains maps
+    /// <summary>
+    /// Gets or sets whether this is a patch WAD (PWAD) vs an IWAD.
+    /// IWADs are standalone game files, PWADs are modifications.
+    /// </summary>
+    public bool IsPatch { get; set; }
+    
+    /// <summary>
+    /// Gets or sets whether this WAD contains map data.
+    /// </summary>
+    public bool HasMaps { get; set; }
 
+    /// <summary>
+    /// Gets a SelectWadInfo instance for UI binding.
+    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public SelectWadInfo Info => new(){
+    public SelectWadInfo Info => new()
+    {
         Path = this.Path,
         DisplayName = this.Name,
         HasMaps = this.HasMaps

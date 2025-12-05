@@ -7,6 +7,7 @@ using Underworld.ViewModels;
 
 namespace Underworld.ViewModelTests
 {
+    [Collection("Non-Parallel Collection")]
     public class WadManagementTests : IDisposable
     {
         public WadManagementTests()
@@ -108,7 +109,8 @@ namespace Underworld.ViewModelTests
 
             // Rebuild filtered collections
             vm.FilteredAvailableWads.Clear();
-            foreach (var wad in MainWindowViewModel.AllWads.Where(w => !w.IsSelected))
+            var unselectedWads = MainWindowViewModel.AllWads.Where(w => !w.IsSelected).ToList();
+            foreach (var wad in unselectedWads)
                 vm.FilteredAvailableWads.Add(wad);
 
             Assert.Equal(3, vm.FilteredAvailableWads.Count);

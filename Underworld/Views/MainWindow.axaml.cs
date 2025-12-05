@@ -462,6 +462,13 @@ public partial class MainWindow : Window
 
     private void OnAddWadsClicked(object? sender, RoutedEventArgs e)
     {
+        // Block if profile is locked
+        if (this.DataContext is ViewModels.MainWindowViewModel vm && vm.SelectedProfile?.Locked == true)
+        {
+            _ = ShowPopup("Profile Locked", "Cannot modify WAD selection while profile is locked.");
+            return;
+        }
+
         // Force-sync selection from the DataGrid into the ViewModel before executing the command
         var wadGrid1 = this.FindControl<DataGrid>("WADsDataGrid1");
         if (wadGrid1 != null)
@@ -492,6 +499,13 @@ public partial class MainWindow : Window
 
     private void OnRemoveWadsClicked(object? sender, RoutedEventArgs e)
     {
+        // Block if profile is locked
+        if (this.DataContext is ViewModels.MainWindowViewModel vm && vm.SelectedProfile?.Locked == true)
+        {
+            _ = ShowPopup("Profile Locked", "Cannot modify WAD selection while profile is locked.");
+            return;
+        }
+
         // Force-sync selection from the DataGrid into the ViewModel before executing the command
         var wadGrid2 = this.FindControl<DataGrid>("WADsDataGrid2");
         if (wadGrid2 != null)
