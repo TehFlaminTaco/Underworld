@@ -25,7 +25,7 @@ Underworld is a graphical launcher for DooM and DooM-engine games. It helps you:
 
 1. Go to the [Releases](https://github.com/TehFlaminTaco/Underworld/releases) page
 2. Download the appropriate package for your platform:
-   - **Linux**: `Underworld-linux-x64.tar.gz`
+   - **Linux**: `Underworld-linux-x64.zip`
    - **Windows**: `Underworld-win-x64.zip`
    - **macOS**: `Underworld-osx-x64.zip`
 3. Extract and run the `Underworld` executable
