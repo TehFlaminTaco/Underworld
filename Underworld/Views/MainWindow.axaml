@@ -10,7 +10,13 @@
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/underworld-logo.ico"
     Width="1100" Height="700"
-    Title="Underworld">
+    Title="Underworld"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaChromeHints="NoChrome"
+    ExtendClientAreaTitleBarHeightHint="40"
+    SystemDecorations="None"
+    TransparencyLevelHint="AcrylicBlur"
+    Background="Transparent">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -39,24 +45,73 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,6"/>
         </Style>
+
+        <Style Selector="Button.TitleBarButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B0B6C0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+        <Style Selector="Button.TitleBarButton:pointerover">
+            <Setter Property="Background" Value="#333842"/>
+        </Style>
+        <Style Selector="Button.TitleBarButton:pressed">
+            <Setter Property="Background" Value="#252931"/>
+        </Style>
+        <Style Selector="Button.TitleBarButton.CloseButton:pointerover">
+            <Setter Property="Background" Value="#E81123"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
     </Window.Styles>
 
-    <DockPanel Margin="8" LastChildFill="True">
-        <!-- Application menu bar -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_Export Profile" Command="{Binding ExportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
-                <MenuItem Header="_Import Profile" Command="{Binding ImportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
-                <Separator />
-                <MenuItem Header="_Manage Data Folders..." Click="OnManageDataFoldersClicked" />
-                <MenuItem Header="Clear WAD Cache" Click="OnClearCacheClicked" />
-                <Separator />
-                <MenuItem Header="E_xit" Click="OnExitClicked" />
-            </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="_About" Click="OnAboutClicked" />
-            </MenuItem>
-        </Menu>
+    <Panel>
+        <!-- Main Window Background -->
+        <Border Background="#1A1D22" />
+
+        <!-- Custom Title Bar with integrated menu -->
+        <Border Height="40" VerticalAlignment="Top" Background="#1A1D22" 
+                BorderBrush="#333842" BorderThickness="0,0,0,1"
+                PointerPressed="OnTitleBarPointerPressed"
+                DoubleTapped="OnTitleBarDoubleTapped">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                <!-- Icon -->
+                <Image Grid.Column="0" Source="/Assets/underworld-logo.ico" Width="20" Height="20" 
+                       Margin="12,0,8,0" VerticalAlignment="Center" />
+                
+                <!-- Menu Bar -->
+                <Menu Grid.Column="1" VerticalAlignment="Center" Background="Transparent">
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_Export Profile" Command="{Binding ExportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
+                        <MenuItem Header="_Import Profile" Command="{Binding ImportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
+                        <Separator />
+                        <MenuItem Header="_Manage Data Folders..." Click="OnManageDataFoldersClicked" />
+                        <MenuItem Header="Clear WAD Cache" Click="OnClearCacheClicked" />
+                        <Separator />
+                        <MenuItem Header="E_xit" Click="OnExitClicked" />
+                    </MenuItem>
+                    <MenuItem Header="_Help">
+                        <MenuItem Header="_About" Click="OnAboutClicked" />
+                    </MenuItem>
+                </Menu>
+
+                <!-- Centered Title -->
+                <TextBlock Grid.Column="2" Text="Underworld" FontSize="12" FontWeight="SemiBold" 
+                           Foreground="#FFB347" VerticalAlignment="Center" HorizontalAlignment="Center" />
+
+                <!-- Window Controls -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0">
+                    <Button Classes="TitleBarButton" Content="─" Click="OnMinimizeClicked" ToolTip.Tip="Minimize" />
+                    <Button Classes="TitleBarButton" Content="□" Click="OnMaximizeClicked" ToolTip.Tip="Maximize" />
+                    <Button Classes="TitleBarButton CloseButton" Content="✕" Click="OnCloseClicked" ToolTip.Tip="Close" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <DockPanel Margin="8,48,8,8" LastChildFill="True">
 
         <!-- Footer -->
         <Border DockPanel.Dock="Bottom" Padding="8,6" Background="#1A1D22">
@@ -79,18 +134,17 @@
         </Border>
 
         <!-- Main content -->
-        <Grid RowDefinitions="Auto,*" RowSpacing="8" Background="#1A1D22">
+        <Grid RowDefinitions="0.4*,0.6*" RowSpacing="8" Background="#1A1D22">
             <!-- Top: Engine / IWAD / Profile -->
             <Grid ColumnDefinitions="2*,2*,1.5*" ColumnSpacing="8">
                 <!-- 1. Engine -->
                 <Border Classes="Card">
-                    <StackPanel>
+                    <Grid RowDefinitions="Auto,*,Auto">
                         <TextBlock Text="1. Engine" Classes="SectionHeader" />
-                        <ListBox Name="ExecutablesList" 
+                        <ListBox Grid.Row="1" Name="ExecutablesList" 
                                  ItemsSource="{Binding Executables}"
                                  SelectedItem="{Binding SelectedExecutable}"
-                                 SelectionMode="Single"
-                                 Height="160">
+                                 SelectionMode="Single">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
@@ -107,25 +161,24 @@
                                 </ContextMenu>
                             </ListBox.ContextMenu>
                         </ListBox>
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                             <Button Content="Add Engine..." 
                                     Command="{Binding AddExecutablesCommand}" 
                                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=local:MainWindow}}" />
                             <Button Content="Remove"
                                     Command="{Binding RemoveSelectedExecutableCommand}" />
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- 2. Base Game (IWAD) -->
                 <Border Grid.Column="1" Classes="Card">
-                    <StackPanel>
+                    <Grid RowDefinitions="Auto,*,33">
                         <TextBlock Text="2. Base Game (IWAD)" Classes="SectionHeader" />
-                        <ListBox Name="IWADsList"
+                        <ListBox Grid.Row="1" Name="IWADsList"
                                  ItemsSource="{Binding IWADs}"
                                  SelectedItem="{Binding SelectedIWAD}"
-                                 SelectionMode="Single"
-                                 Height="160">
+                                 SelectionMode="Single">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
@@ -135,25 +188,24 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                    </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- 3. Profile -->
                 <Border Grid.Column="2" Classes="Card">
-                    <StackPanel>
+                    <Grid RowDefinitions="Auto,*,Auto">
                         <TextBlock Text="3. Profile" Classes="SectionHeader" />
-                        <ListBox Name="ProfilesList"
+                        <ListBox Grid.Row="1" Name="ProfilesList"
                                  ItemsSource="{Binding Profiles}"
                                  SelectedItem="{Binding SelectedProfile}"
-                                 SelectionMode="Single"
-                                 Height="160">
+                                 SelectionMode="Single">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Name}" Foreground="White" Margin="4"/>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0">
                             <Button Content="New" Click="OnNewProfileClicked" />
                             <Button Content="Remove" Click="OnRemoveProfileClicked" />
                             <CheckBox Name="ProfileLockedCheckbox" 
@@ -163,7 +215,7 @@
                                       VerticalAlignment="Center"
                                       Margin="4,0,0,0" />
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Border>
             </Grid>
 
@@ -211,11 +263,11 @@
                             VerticalAlignment="Center"
                             Spacing="8">
                     <Button Name="AddWadsButton" 
-                            Content="  &gt;&gt;  " 
+                            Content="  ⇉  " 
                             Width="60"
                             Click="OnAddWadsClicked"/>
                     <Button Name="RemoveWadsButton" 
-                            Content="  &lt;&lt;  " 
+                            Content="  ⇇  " 
                             Width="60"
                             Click="OnRemoveWadsClicked"/>
                 </StackPanel>
@@ -255,6 +307,7 @@
                 </Border>
             </Grid>
         </Grid>
-    </DockPanel>
+        </DockPanel>
+    </Panel>
 
 </Window>
