@@ -273,6 +273,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
             SELECTED_PROFILE = value;
             SetProperty(ref _selectedProfile, value);
+            OnPropertyChanged(nameof(CurrentProfileLocked));
         }
     }
 
@@ -501,6 +502,9 @@ public partial class MainWindowViewModel : ViewModelBase
                     ShowFailDialogue($"Failed to import profile: {failReason}");
                     return;
                 }
+
+                // Set imported profiles as locked by default
+                profile.Locked = true;
 
                 // Check if profile with same name already exists
                 if (Profiles.Any(p => p.Name == profile.Name))
