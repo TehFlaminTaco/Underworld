@@ -13,6 +13,7 @@ using Avalonia.Layout;
 using System.Linq;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Underworld.Models;
 using Underworld.ViewModels;
 
@@ -25,11 +26,11 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
-        InitializeComponent();
-
-        // Wire the view model for runtime bindings
+        // Wire the view model BEFORE InitializeComponent so bindings can resolve
         _vm = new ViewModels.MainWindowViewModel();
         this.DataContext = _vm;
+        
+        InitializeComponent();
 
         // Setup selection tracking on window load
         this.Loaded += MainWindow_Loaded;
@@ -174,14 +175,46 @@ public partial class MainWindow : Window
     // Custom titlebar event handlers
     private void OnTitleBarPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
+        // Don't handle if the event came from the Menu or MenuItem
+        var source = e.Source;
+        while (source != null)
+        {
+            if (source is Menu || source is MenuItem)
+            {
+                Console.WriteLine($"Click came from {source.GetType().Name}, ignoring for title bar drag");
+                return;
+            }
+            if (source is Avalonia.Visual visual)
+                source = visual.GetVisualParent();
+            else
+                break;
+        }
+        
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            Console.WriteLine("Starting title bar drag");
             BeginMoveDrag(e);
         }
     }
 
     private void OnTitleBarDoubleTapped(object? sender, RoutedEventArgs e)
     {
+        // Don't handle if the event came from the Menu or its children
+        var source = e.Source;
+        while (source != null)
+        {
+            if (source is Menu || source is MenuItem)
+            {
+                Console.WriteLine("Double-click came from Menu/MenuItem, ignoring");
+                return;
+            }
+            if (source is Avalonia.Visual visual)
+                source = visual.GetVisualParent();
+            else
+                break;
+        }
+        
+        Console.WriteLine("Toggling window state");
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
@@ -202,12 +235,42 @@ public partial class MainWindow : Window
 
     private void OnExitClicked(object? sender, RoutedEventArgs e)
     {
+        Console.WriteLine("=== OnExitClicked CALLED ===");
         (App.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+    }
+
+    private void OnMenuPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        // Stop the event from propagating to the title bar
+        e.Handled = true;
     }
 
     private void OnAboutClicked(object? sender, RoutedEventArgs e)
     {
+        Console.WriteLine("=== OnAboutClicked CALLED - Menu events ARE working ===");
         ShowPopup("About", "Underworld\n\nUnderworld is a DooM launcher created by TehFlaminTaco. AI was utilized in the creation of this program and art assets.\n\nLicensed CC BY-SA 4.0");
+    }
+
+    private void OnDarkThemeClicked(object? sender, RoutedEventArgs e)
+    {
+        Console.WriteLine("=== OnDarkThemeClicked CALLED ===");
+        Console.WriteLine($"Sender: {sender?.GetType().Name ?? "null"}");
+        Console.WriteLine($"RoutedEventArgs: {e?.GetType().Name ?? "null"}");
+        Console.WriteLine("Switching to Dark Theme");
+        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
+        Console.WriteLine($"Current theme is now: {ThemeManager.CurrentTheme}");
+        Console.WriteLine("=== OnDarkThemeClicked COMPLETE ===");
+    }
+
+    private void OnLightThemeClicked(object? sender, RoutedEventArgs e)
+    {
+        Console.WriteLine("=== OnLightThemeClicked CALLED ===");
+        Console.WriteLine($"Sender: {sender?.GetType().Name ?? "null"}");
+        Console.WriteLine($"RoutedEventArgs: {e?.GetType().Name ?? "null"}");
+        Console.WriteLine("Switching to Light Theme");
+        ThemeManager.SetTheme(ThemeManager.Theme.Light);
+        Console.WriteLine($"Current theme is now: {ThemeManager.CurrentTheme}");
+        Console.WriteLine("=== OnLightThemeClicked COMPLETE ===");
     }
 
     private void OnRunGameClicked(object? sender, RoutedEventArgs e)

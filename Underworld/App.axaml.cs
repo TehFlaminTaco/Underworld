@@ -6,6 +6,7 @@ using System.Linq;
 using Avalonia.Markup.Xaml;
 using Underworld.ViewModels;
 using Underworld.Views;
+using Underworld.Models;
 
 namespace Underworld;
 
@@ -18,6 +19,10 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Initialize theme system AFTER framework initialization
+        ThemeManager.Initialize();
+        ThemeManager.ApplyTheme();
+        
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 

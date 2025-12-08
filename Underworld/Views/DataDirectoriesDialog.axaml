@@ -9,27 +9,27 @@
     Height="400"
     ShowInTaskbar="False"
     WindowStartupLocation="CenterOwner"
-    Background="#FF2D2D30">
+    Background="{DynamicResource CardBackgroundBrush}">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="10" ColumnDefinitions="*">
         <!-- Title -->
         <TextBlock Grid.Row="0" Text="Data Directories (from environment variables are read-only):" 
-                   FontWeight="Bold" Foreground="White" Margin="0,0,0,8"/>
+                   FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
 
         <!-- Directory List -->
         <ListBox Grid.Row="1" Name="DirectoryList" 
                  ItemsSource="{Binding DataDirectories}" 
                  SelectedItem="{Binding SelectedDirectory, Mode=TwoWay}"
-                 Foreground="White"
-                 Background="#FF3F3F46">
+                 Foreground="{DynamicResource PrimaryTextBrush}"
+                 Background="{DynamicResource ControlBackgroundBrush}">
             <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type models:DataDirectory}">
                     <StackPanel Orientation="Vertical" Margin="4">
-                        <TextBlock Text="{Binding Path}" Foreground="White"/>
+                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource PrimaryTextBrush}"/>
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="{Binding Source}" Foreground="#FFBFBFBF" FontSize="12"/>
+                            <TextBlock Text="{Binding Source}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
                             <TextBlock Text="{Binding IsFromEnvironment, StringFormat='({0})'}" 
-                                       Foreground="#FF808080" FontSize="11"
+                                       Foreground="{DynamicResource TertiaryTextBrush}" FontSize="11"
                                        IsVisible="{Binding IsFromEnvironment}"/>
                         </StackPanel>
                     </StackPanel>

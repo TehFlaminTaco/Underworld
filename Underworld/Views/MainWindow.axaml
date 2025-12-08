@@ -24,31 +24,31 @@
 
     <Window.Styles>
         <Style Selector="Border.Card">
-            <Setter Property="Background" Value="#252931"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="12"/>
-            <Setter Property="BorderBrush" Value="#333842"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
 
         <Style Selector="TextBlock.SectionHeader">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#FFB347"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 
         <Style Selector="Button.Primary">
-            <Setter Property="Background" Value="#FF4B2B"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#FF4B2B"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,6"/>
         </Style>
 
         <Style Selector="Button.TitleBarButton">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#B0B6C0"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="46"/>
             <Setter Property="Height" Value="32"/>
@@ -56,24 +56,24 @@
             <Setter Property="FontSize" Value="10"/>
         </Style>
         <Style Selector="Button.TitleBarButton:pointerover">
-            <Setter Property="Background" Value="#333842"/>
+            <Setter Property="Background" Value="{DynamicResource TitleBarHoverBrush}"/>
         </Style>
         <Style Selector="Button.TitleBarButton:pressed">
-            <Setter Property="Background" Value="#252931"/>
+            <Setter Property="Background" Value="{DynamicResource TitleBarPressedBrush}"/>
         </Style>
         <Style Selector="Button.TitleBarButton.CloseButton:pointerover">
-            <Setter Property="Background" Value="#E81123"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource DangerRedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
     </Window.Styles>
 
     <Panel>
         <!-- Main Window Background -->
-        <Border Background="#1A1D22" />
+        <Border Background="{DynamicResource WindowBackgroundBrush}" />
 
         <!-- Custom Title Bar with integrated menu -->
-        <Border Height="40" VerticalAlignment="Top" Background="#1A1D22" 
-                BorderBrush="#333842" BorderThickness="0,0,0,1"
+        <Border Height="40" VerticalAlignment="Top" Background="{DynamicResource WindowBackgroundBrush}" 
+                BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,1"
                 PointerPressed="OnTitleBarPointerPressed"
                 DoubleTapped="OnTitleBarDoubleTapped">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto">
@@ -82,6 +82,7 @@
                        Margin="12,0,8,0" VerticalAlignment="Center" />
                 
                 <!-- Menu Bar -->
+                
                 <Menu Grid.Column="1" VerticalAlignment="Center" Background="Transparent">
                     <MenuItem Header="_File">
                         <MenuItem Header="_Export Profile" Command="{Binding ExportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
@@ -92,6 +93,10 @@
                         <Separator />
                         <MenuItem Header="E_xit" Click="OnExitClicked" />
                     </MenuItem>
+                    <MenuItem Header="_View">
+                        <MenuItem Header="Dark Theme" Click="OnDarkThemeClicked" />
+                        <MenuItem Header="Light Theme" Click="OnLightThemeClicked" />
+                    </MenuItem>
                     <MenuItem Header="_Help">
                         <MenuItem Header="_About" Click="OnAboutClicked" />
                     </MenuItem>
@@ -99,7 +104,7 @@
 
                 <!-- Centered Title -->
                 <TextBlock Grid.Column="2" Text="Underworld" FontSize="12" FontWeight="SemiBold" 
-                           Foreground="#FFB347" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                           Foreground="{DynamicResource AccentOrangeBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
 
                 <!-- Window Controls -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0">
@@ -114,11 +119,11 @@
         <DockPanel Margin="8,48,8,8" LastChildFill="True">
 
         <!-- Footer -->
-        <Border DockPanel.Dock="Bottom" Padding="8,6,8,-4" Background="#1A1D22">
+        <Border DockPanel.Dock="Bottom" Padding="8,6,8,-4" Background="{DynamicResource WindowBackgroundBrush}">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Text="Command Line Arguments:" 
-                               Foreground="#B0B6C0"
+                               Foreground="{DynamicResource MutedTextBrush}"
                                VerticalAlignment="Center" />
                     <TextBox Width="400" 
                              Text="{Binding CommandLineArguments, Mode=TwoWay}"
@@ -135,7 +140,7 @@
         </Border>
 
         <!-- Main content -->
-        <Grid RowDefinitions="0.4*,0.6*" RowSpacing="8" Background="#1A1D22">
+        <Grid RowDefinitions="0.4*,0.6*" RowSpacing="8" Background="{DynamicResource WindowBackgroundBrush}">
             <!-- Top: Engine / IWAD / Profile -->
             <Grid ColumnDefinitions="2*,2*,1.5*" ColumnSpacing="8">
                 <!-- 1. Engine -->
@@ -149,8 +154,8 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
-                                        <TextBlock Text="{Binding DisplayName}" Foreground="White"/>
-                                        <TextBlock Text="{Binding Path}" Foreground="#FFBFBFBF" FontSize="11"/>
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -183,8 +188,8 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
-                                        <TextBlock Text="{Binding DisplayName}" Foreground="White"/>
-                                        <TextBlock Text="{Binding Path}" Foreground="#FFBFBFBF" FontSize="11"/>
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -202,7 +207,7 @@
                                  SelectionMode="Single">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" Foreground="White" Margin="4"/>
+                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource PrimaryTextBrush}" Margin="4"/>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -240,11 +245,11 @@
                                   ItemsSource="{Binding FilteredAvailableWads}"
                                   SelectionMode="Extended"
                                   AutoGenerateColumns="False"
-                                  Background="#FF3F3F46"
-                                  Foreground="White"
-                                  RowBackground="#FF3F3F46"
+                                  Background="{DynamicResource ControlBackgroundBrush}"
+                                  Foreground="{DynamicResource PrimaryTextBrush}"
+                                  RowBackground="{DynamicResource ControlBackgroundBrush}"
                                   BorderThickness="1"
-                                  BorderBrush="#FF555555"
+                                  BorderBrush="{DynamicResource ControlBorderBrush}"
                                   CanUserReorderColumns="True"
                                   CanUserResizeColumns="True"
                                   CanUserSortColumns="True"
@@ -289,11 +294,11 @@
                                   ItemsSource="{Binding FilteredSelectedWads}"
                                   SelectionMode="Extended"
                                   AutoGenerateColumns="False"
-                                  Background="#FF3F3F46"
-                                  Foreground="White"
-                                  RowBackground="#FF3F3F46"
+                                  Background="{DynamicResource ControlBackgroundBrush}"
+                                  Foreground="{DynamicResource PrimaryTextBrush}"
+                                  RowBackground="{DynamicResource ControlBackgroundBrush}"
                                   BorderThickness="1"
-                                  BorderBrush="#FF555555"
+                                  BorderBrush="{DynamicResource ControlBorderBrush}"
                                   CanUserReorderColumns="True"
                                   CanUserResizeColumns="True"
                                   CanUserSortColumns="True"

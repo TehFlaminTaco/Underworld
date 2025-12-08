@@ -49,6 +49,18 @@ public partial class MainWindowViewModel : ViewModelBase
         AddExecutablesCommand = new RelayCommand(p => { _ = AddExecutablesFromWindowAsync(p); });
         ExportProfileCommand = new RelayCommand(p => { _ = ExportProfileAsync(p); }, _ => SelectedProfile != null);
         ImportProfileCommand = new RelayCommand(p => { _ = ImportProfileAsync(p); });
+        SetDarkThemeCommand = new RelayCommand(_ => 
+        {
+            Console.WriteLine("SetDarkThemeCommand executed!");
+            ThemeManager.SetTheme(ThemeManager.Theme.Dark);
+            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme}");
+        });
+        SetLightThemeCommand = new RelayCommand(_ => 
+        {
+            Console.WriteLine("SetLightThemeCommand executed!");
+            ThemeManager.SetTheme(ThemeManager.Theme.Light);
+            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme}");
+        });
 
         AllWads.Clear();
 
@@ -329,6 +341,16 @@ public partial class MainWindowViewModel : ViewModelBase
     /// Gets the command to import a profile from a JSON file.
     /// </summary>
     public ICommand ImportProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to set the dark theme.
+    /// </summary>
+    public ICommand SetDarkThemeCommand { get; }
+
+    /// <summary>
+    /// Gets the command to set the light theme.
+    /// </summary>
+    public ICommand SetLightThemeCommand { get; }
 
     /// <summary>
     /// Gets or sets whether the current profile is locked.
