@@ -251,26 +251,10 @@ public partial class MainWindow : Window
         ShowPopup("About", "Underworld\n\nUnderworld is a DooM launcher created by TehFlaminTaco. AI was utilized in the creation of this program and art assets.\n\nLicensed CC BY-SA 4.0");
     }
 
-    private void OnDarkThemeClicked(object? sender, RoutedEventArgs e)
+    private async void OnManageThemeClicked(object? sender, RoutedEventArgs e)
     {
-        Console.WriteLine("=== OnDarkThemeClicked CALLED ===");
-        Console.WriteLine($"Sender: {sender?.GetType().Name ?? "null"}");
-        Console.WriteLine($"RoutedEventArgs: {e?.GetType().Name ?? "null"}");
-        Console.WriteLine("Switching to Dark Theme");
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-        Console.WriteLine($"Current theme is now: {ThemeManager.CurrentTheme}");
-        Console.WriteLine("=== OnDarkThemeClicked COMPLETE ===");
-    }
-
-    private void OnLightThemeClicked(object? sender, RoutedEventArgs e)
-    {
-        Console.WriteLine("=== OnLightThemeClicked CALLED ===");
-        Console.WriteLine($"Sender: {sender?.GetType().Name ?? "null"}");
-        Console.WriteLine($"RoutedEventArgs: {e?.GetType().Name ?? "null"}");
-        Console.WriteLine("Switching to Light Theme");
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-        Console.WriteLine($"Current theme is now: {ThemeManager.CurrentTheme}");
-        Console.WriteLine("=== OnLightThemeClicked COMPLETE ===");
+        var dialog = new ThemeManagerDialog();
+        await dialog.ShowDialog(this);
     }
 
     private void OnRunGameClicked(object? sender, RoutedEventArgs e)

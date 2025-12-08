@@ -38,14 +38,6 @@
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 
-        <Style Selector="Button.Primary">
-            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBrush}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,6"/>
-        </Style>
-
         <Style Selector="Button.TitleBarButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
@@ -94,8 +86,7 @@
                         <MenuItem Header="E_xit" Click="OnExitClicked" />
                     </MenuItem>
                     <MenuItem Header="_View">
-                        <MenuItem Header="Dark Theme" Click="OnDarkThemeClicked" />
-                        <MenuItem Header="Light Theme" Click="OnLightThemeClicked" />
+                        <MenuItem Header="_Manage Theme..." Click="OnManageThemeClicked" />
                     </MenuItem>
                     <MenuItem Header="_Help">
                         <MenuItem Header="_About" Click="OnAboutClicked" />
@@ -154,8 +145,8 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
-                                        <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                        <TextBlock Classes="ListEntryPrimaryText" Text="{Binding DisplayName}"/>
+                                        <TextBlock Classes="ListEntrySecondaryText" Text="{Binding Path}" FontSize="11"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -188,8 +179,8 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4">
-                                        <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                        <TextBlock Text="{Binding Path}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+                                        <TextBlock Classes="ListEntryPrimaryText" Text="{Binding DisplayName}"/>
+                                        <TextBlock Classes="ListEntrySecondaryText" Text="{Binding Path}" FontSize="11"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -207,7 +198,7 @@
                                  SelectionMode="Single">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource PrimaryTextBrush}" Margin="4"/>
+                                    <TextBlock Classes="ListEntryPrimaryText" Text="{Binding Name}" Margin="4"/>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

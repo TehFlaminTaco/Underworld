@@ -1,0 +1,66 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Underworld.ViewModels"
+        x:Class="Underworld.Views.ThemeManagerDialog"
+        x:DataType="vm:ThemeManagerViewModel"
+        Title="Manage Theme"
+        Width="420"
+        Height="320"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource CardBackgroundBrush}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+        <TextBlock Grid.Row="0"
+                   Text="Select a theme to apply"
+                   FontWeight="Bold"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   Margin="0,0,0,8"/>
+
+        <ListBox x:Name="ThemeList"
+                 Grid.Row="1"
+                 ItemsSource="{Binding Themes}"
+                 SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
+                 Background="{DynamicResource ControlBackgroundBrush}"
+                 Foreground="{DynamicResource PrimaryTextBrush}"
+                 BorderBrush="{DynamicResource CardBorderBrush}"
+                 BorderThickness="1"
+                 DoubleTapped="OnThemeDoubleTapped">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:ThemeOptionViewModel">
+                    <Border x:Name="ThemeItemCard"
+                            Background="{DynamicResource CardBackgroundBrush}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8"
+                            Margin="0,4">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                <Border Background="{DynamicResource AccentOrangeBrush}"
+                                        Padding="6,0"
+                                        CornerRadius="10"
+                                        IsVisible="{Binding IsCurrent}">
+                                    <TextBlock Text="Current"
+                                               Foreground="{DynamicResource WindowBackgroundBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{Binding Description}"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       FontSize="12"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <Button Content="Apply Theme"
+                    Command="{Binding ApplyThemeCommand}"/>
+            <Button Content="Close"
+                    Click="OnCloseClicked"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -94,9 +94,6 @@ public class ThemeColorDisplayTests
 
     private string ColorToHex(Color color)
     {
-        if (color.Equals(Colors.White))
-            return "#FFFFFF";
-        
         return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
     }
 

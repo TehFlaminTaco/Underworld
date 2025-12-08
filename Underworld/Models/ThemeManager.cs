@@ -32,7 +32,7 @@ public static class ThemeManager
 
     /// <summary>
     /// Gets all available color definitions for the dark theme
-    /// </summary>
+    /// </summary
     public static Dictionary<string, Color> DarkThemeColors => new()
     {
         // Main backgrounds
@@ -53,7 +53,12 @@ public static class ThemeManager
         // Accent colors
         ["AccentOrange"] = Color.Parse("#FFB347"),
         ["PrimaryButton"] = Color.Parse("#FF4B2B"),
+        ["PrimaryButtonForeground"] = Colors.White,
         ["DangerRed"] = Color.Parse("#E81123"),
+        ["ScrollBarTrack"] = Color.Parse("#1F232A"),
+        ["ScrollBarThumb"] = Color.Parse("#4B4F5A"),
+        ["SelectionBackground"] = Color.Parse("#FFB347"),
+        ["SelectionForeground"] = Color.Parse("#1A1D22"),
         
         // Title bar
         ["TitleBarHover"] = Color.Parse("#333842"),
@@ -82,8 +87,13 @@ public static class ThemeManager
         
         // Accent colors
         ["AccentOrange"] = Color.Parse("#FF8C00"),
-        ["PrimaryButton"] = Color.Parse("#D43D1A"),
+        ["PrimaryButton"] = Color.Parse("#D04A1E"),
+        ["PrimaryButtonForeground"] = Colors.White,
         ["DangerRed"] = Color.Parse("#C50F1F"),
+        ["ScrollBarTrack"] = Color.Parse("#E8E8E8"),
+        ["ScrollBarThumb"] = Color.Parse("#C5C5C5"),
+        ["SelectionBackground"] = Color.Parse("#FF8C00"),
+        ["SelectionForeground"] = Color.Parse("#1A1D22"),
         
         // Title bar
         ["TitleBarHover"] = Color.Parse("#E5E5E5"),
