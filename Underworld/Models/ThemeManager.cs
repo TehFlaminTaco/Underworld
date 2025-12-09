@@ -179,28 +179,6 @@ public static class ThemeManager
     public static void SetTheme(ThemeDefinition theme) => SetTheme(theme.Id);
 
     /// <summary>
-    /// Toggles to the next available theme.
-    /// </summary>
-    public static void ToggleTheme()
-    {
-        EnsureThemesLoaded();
-
-        if (_orderedThemes.Count <= 1)
-        {
-            return;
-        }
-
-        var currentIndex = _orderedThemes.FindIndex(t => t.Id.Equals(_currentThemeId, StringComparison.OrdinalIgnoreCase));
-        if (currentIndex < 0)
-        {
-            currentIndex = 0;
-        }
-
-        var nextTheme = _orderedThemes[(currentIndex + 1) % _orderedThemes.Count];
-        SetTheme(nextTheme.Id);
-    }
-
-    /// <summary>
     /// Applies the current theme to application resources (called during startup)
     /// </summary>
     public static void ApplyTheme()

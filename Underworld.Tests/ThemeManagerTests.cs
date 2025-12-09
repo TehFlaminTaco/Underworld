@@ -113,18 +113,6 @@ public class ThemeManagerTests
     }
 
     [Fact]
-    public void ToggleTheme_CyclesThroughAvailableThemes()
-    {
-        ThemeManager.SetTheme("dark");
-
-        ThemeManager.ToggleTheme();
-        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
-
-        ThemeManager.ToggleTheme();
-        Assert.Equal("dark", ThemeManager.CurrentTheme.Id);
-    }
-
-    [Fact]
     public void GetCurrentThemeColors_ReflectsActiveTheme()
     {
         ThemeManager.SetTheme("dark");

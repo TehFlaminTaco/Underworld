@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Xunit;
 using Underworld.Models;
 using Underworld.ViewModels;
@@ -20,26 +19,6 @@ public class ThemeIntegrationTests
         _testThemeConfig.Set("dark");
         ThemeManager.Initialize();
         ThemeManager.SetTheme("dark");
-    }
-
-    [Fact]
-    public void ThemeManager_InitializeAndToggle_WorksCorrectly()
-    {
-        var available = ThemeManager.AvailableThemes.ToList();
-        Assert.NotEmpty(available);
-
-        var startingTheme = ThemeManager.CurrentTheme.Id;
-
-        ThemeManager.ToggleTheme();
-        var expectedNext = available[(available.FindIndex(t => t.Id == startingTheme) + 1) % available.Count].Id;
-        Assert.Equal(expectedNext, ThemeManager.CurrentTheme.Id);
-
-        for (var i = 1; i < available.Count; i++)
-        {
-            ThemeManager.ToggleTheme();
-        }
-
-        Assert.Equal(startingTheme, ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
@@ -90,24 +69,6 @@ public class ThemeIntegrationTests
         var lightWindowBg = ThemeManager.GetCurrentThemeColors()["WindowBackground"];
 
         Assert.NotEqual(darkWindowBg, lightWindowBg);
-    }
-
-    [Fact]
-    public void ThemeManager_MultipleToggle_MaintainsCorrectState()
-    {
-        ThemeManager.SetTheme("dark");
-        var available = ThemeManager.AvailableThemes.ToList();
-        Assert.True(available.Count >= 2, "Expected at least two themes for toggling.");
-
-        var expectedIndex = available.FindIndex(t => t.Id.Equals(ThemeManager.CurrentTheme.Id, StringComparison.OrdinalIgnoreCase));
-        Assert.InRange(expectedIndex, 0, available.Count - 1);
-
-        for (var i = 0; i < available.Count * 2; i++)
-        {
-            ThemeManager.ToggleTheme();
-            expectedIndex = (expectedIndex + 1) % available.Count;
-            Assert.Equal(available[expectedIndex].Id, ThemeManager.CurrentTheme.Id);
-        }
     }
 
     [Fact]
