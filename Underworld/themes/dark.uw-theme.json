@@ -1,0 +1,28 @@
+{
+  "id": "dark",
+  "name": "Dark",
+  "description": "High-contrast palette optimized for low-light environments.",
+  "sortOrder": 0,
+  "aliases": ["Dark"],
+  "colors": {
+    "WindowBackground": "#1A1D22",
+    "CardBackground": "#252931",
+    "ControlBackground": "#3F3F46",
+    "CardBorder": "#333842",
+    "ControlBorder": "#555555",
+    "PrimaryText": "#FFFFFF",
+    "SecondaryText": "#BFBFBF",
+    "TertiaryText": "#808080",
+    "MutedText": "#B0B6C0",
+    "AccentOrange": "#FFB347",
+    "PrimaryButton": "#FF4B2B",
+    "PrimaryButtonForeground": "#FFFFFF",
+    "DangerRed": "#E81123",
+    "ScrollBarTrack": "#1F232A",
+    "ScrollBarThumb": "#4B4F5A",
+    "SelectionBackground": "#FFB347",
+    "SelectionForeground": "#1A1D22",
+    "TitleBarHover": "#333842",
+    "TitleBarPressed": "#252931"
+  }
+}

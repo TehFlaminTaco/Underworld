@@ -24,10 +24,12 @@ public class ThemeColorDisplayTests
         _output.WriteLine("=== DARK THEME COLOR PALETTE ===");
         _output.WriteLine("");
 
-        var darkColors = ThemeManager.DarkThemeColors;
-        
-        foreach (var (key, color) in darkColors)
+        var darkColors = ThemeManager.GetThemeColors("dark");
+
+        foreach (var kvp in darkColors)
         {
+            var key = kvp.Key;
+            var color = kvp.Value;
             _output.WriteLine($"{key,-20} : {ColorToHex(color),-10} RGB({color.R},{color.G},{color.B})");
         }
     }
@@ -38,10 +40,12 @@ public class ThemeColorDisplayTests
         _output.WriteLine("=== LIGHT THEME COLOR PALETTE ===");
         _output.WriteLine("");
 
-        var lightColors = ThemeManager.LightThemeColors;
-        
-        foreach (var (key, color) in lightColors)
+        var lightColors = ThemeManager.GetThemeColors("light");
+
+        foreach (var kvp in lightColors)
         {
+            var key = kvp.Key;
+            var color = kvp.Value;
             _output.WriteLine($"{key,-20} : {ColorToHex(color),-10} RGB({color.R},{color.G},{color.B})");
         }
     }
@@ -52,8 +56,8 @@ public class ThemeColorDisplayTests
         _output.WriteLine("=== COLOR DIFFERENCES BETWEEN THEMES ===");
         _output.WriteLine("");
 
-        var darkColors = ThemeManager.DarkThemeColors;
-        var lightColors = ThemeManager.LightThemeColors;
+        var darkColors = ThemeManager.GetThemeColors("dark");
+        var lightColors = ThemeManager.GetThemeColors("light");
 
         _output.WriteLine($"{"Color Key",-20} {"Dark Theme",-15} {"Light Theme",-15} {"Different",-10}");
         _output.WriteLine(new string('-', 65));
@@ -75,16 +79,18 @@ public class ThemeColorDisplayTests
         _output.WriteLine("");
 
         _output.WriteLine("Dark Theme:");
-        var darkBg = ThemeManager.DarkThemeColors["WindowBackground"];
-        var darkText = ThemeManager.DarkThemeColors["PrimaryText"];
+        var darkPalette = ThemeManager.GetThemeColors("dark");
+        var darkBg = darkPalette["WindowBackground"];
+        var darkText = darkPalette["PrimaryText"];
         _output.WriteLine($"  Background: {ColorToHex(darkBg)} (Luminance: {GetRelativeLuminance(darkBg):F3})");
         _output.WriteLine($"  Text: {ColorToHex(darkText)} (Luminance: {GetRelativeLuminance(darkText):F3})");
         _output.WriteLine($"  Contrast Ratio: {CalculateContrastRatio(darkBg, darkText):F2}:1");
         _output.WriteLine("");
 
         _output.WriteLine("Light Theme:");
-        var lightBg = ThemeManager.LightThemeColors["WindowBackground"];
-        var lightText = ThemeManager.LightThemeColors["PrimaryText"];
+        var lightPalette = ThemeManager.GetThemeColors("light");
+        var lightBg = lightPalette["WindowBackground"];
+        var lightText = lightPalette["PrimaryText"];
         _output.WriteLine($"  Background: {ColorToHex(lightBg)} (Luminance: {GetRelativeLuminance(lightBg):F3})");
         _output.WriteLine($"  Text: {ColorToHex(lightText)} (Luminance: {GetRelativeLuminance(lightText):F3})");
         _output.WriteLine($"  Contrast Ratio: {CalculateContrastRatio(lightBg, lightText):F2}:1");

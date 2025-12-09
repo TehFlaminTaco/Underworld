@@ -1,198 +1,169 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Media;
 
 namespace Underworld.Models;
 
 /// <summary>
-/// Manages application themes (Dark and Light) with hardcoded color definitions.
+/// Manages application themes by loading JSON definitions from the executable's /themes directory.
 /// Provides theme switching functionality and persists user theme preference.
 /// </summary>
 public static class ThemeManager
 {
-    public enum Theme
+    private const string ThemesFolderName = "themes";
+    private const string ThemeFilePattern = "*.uw-theme.json";
+
+    private static readonly ConfigEntry<string> _themeConfig = Config.Setup("Theme", string.Empty);
+    private static readonly Dictionary<string, ThemeDefinition> _themesById = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly List<ThemeDefinition> _orderedThemes = new();
+    private static ReadOnlyCollection<ThemeDefinition>? _cachedReadOnlyThemes;
+    private static readonly JsonSerializerOptions _serializerOptions = new()
     {
-        Dark,
-        Light
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
+    };
+    private static readonly object _syncRoot = new();
+    private static bool _themesLoaded;
+    private static string _currentThemeId = string.Empty;
+
+    /// <summary>
+    /// Event raised when the theme changes.
+    /// </summary>
+    public static event EventHandler<ThemeDefinition>? ThemeChanged;
+
+    /// <summary>
+    /// Gets the theme that is currently active.
+    /// </summary>
+    public static ThemeDefinition CurrentTheme
+    {
+        get
+        {
+            EnsureThemesLoaded();
+
+            if (string.IsNullOrWhiteSpace(_currentThemeId) || !_themesById.ContainsKey(_currentThemeId))
+            {
+                _currentThemeId = _orderedThemes.First().Id;
+            }
+
+            return _themesById[_currentThemeId];
+        }
     }
 
-    private static Theme _currentTheme = Theme.Dark;
-    private static readonly ConfigEntry<string> _themeConfig = Config.Setup("Theme", "Dark");
-
     /// <summary>
-    /// Event raised when the theme changes
+    /// Provides the list of themes that were discovered from disk.
     /// </summary>
-    public static event EventHandler<Theme>? ThemeChanged;
-
-    /// <summary>
-    /// Gets the current active theme
-    /// </summary>
-    public static Theme CurrentTheme => _currentTheme;
-
-    /// <summary>
-    /// Gets all available color definitions for the dark theme
-    /// </summary
-    public static Dictionary<string, Color> DarkThemeColors => new()
+    public static IReadOnlyList<ThemeDefinition> AvailableThemes
     {
-        // Main backgrounds
-        ["WindowBackground"] = Color.Parse("#1A1D22"),
-        ["CardBackground"] = Color.Parse("#252931"),
-        ["ControlBackground"] = Color.Parse("#3F3F46"),
-        
-        // Borders
-        ["CardBorder"] = Color.Parse("#333842"),
-        ["ControlBorder"] = Color.Parse("#555555"),
-        
-        // Text colors
-        ["PrimaryText"] = Colors.White,
-        ["SecondaryText"] = Color.Parse("#BFBFBF"),
-        ["TertiaryText"] = Color.Parse("#808080"),
-        ["MutedText"] = Color.Parse("#B0B6C0"),
-        
-        // Accent colors
-        ["AccentOrange"] = Color.Parse("#FFB347"),
-        ["PrimaryButton"] = Color.Parse("#FF4B2B"),
-        ["PrimaryButtonForeground"] = Colors.White,
-        ["DangerRed"] = Color.Parse("#E81123"),
-        ["ScrollBarTrack"] = Color.Parse("#1F232A"),
-        ["ScrollBarThumb"] = Color.Parse("#4B4F5A"),
-        ["SelectionBackground"] = Color.Parse("#FFB347"),
-        ["SelectionForeground"] = Color.Parse("#1A1D22"),
-        
-        // Title bar
-        ["TitleBarHover"] = Color.Parse("#333842"),
-        ["TitleBarPressed"] = Color.Parse("#252931"),
-    };
+        get
+        {
+            EnsureThemesLoaded();
+            return _cachedReadOnlyThemes ??= new ReadOnlyCollection<ThemeDefinition>(_orderedThemes);
+        }
+    }
 
     /// <summary>
-    /// Gets all available color definitions for the light theme
-    /// </summary>
-    public static Dictionary<string, Color> LightThemeColors => new()
-    {
-        // Main backgrounds
-        ["WindowBackground"] = Color.Parse("#F5F5F5"),
-        ["CardBackground"] = Color.Parse("#FFFFFF"),
-        ["ControlBackground"] = Color.Parse("#FAFAFA"),
-        
-        // Borders
-        ["CardBorder"] = Color.Parse("#E0E0E0"),
-        ["ControlBorder"] = Color.Parse("#CCCCCC"),
-        
-        // Text colors
-        ["PrimaryText"] = Color.Parse("#1A1D22"),
-        ["SecondaryText"] = Color.Parse("#404040"),
-        ["TertiaryText"] = Color.Parse("#707070"),
-        ["MutedText"] = Color.Parse("#505050"),
-        
-        // Accent colors
-        ["AccentOrange"] = Color.Parse("#FF8C00"),
-        ["PrimaryButton"] = Color.Parse("#D04A1E"),
-        ["PrimaryButtonForeground"] = Colors.White,
-        ["DangerRed"] = Color.Parse("#C50F1F"),
-        ["ScrollBarTrack"] = Color.Parse("#E8E8E8"),
-        ["ScrollBarThumb"] = Color.Parse("#C5C5C5"),
-        ["SelectionBackground"] = Color.Parse("#FF8C00"),
-        ["SelectionForeground"] = Color.Parse("#1A1D22"),
-        
-        // Title bar
-        ["TitleBarHover"] = Color.Parse("#E5E5E5"),
-        ["TitleBarPressed"] = Color.Parse("#D0D0D0"),
-    };
-
-    /// <summary>
-    /// Initializes the theme system by loading the saved theme preference
+    /// Initializes the theme system by loading the saved theme preference.
     /// </summary>
     public static void Initialize()
     {
+        EnsureThemesLoaded();
+
         var savedTheme = _themeConfig.Get();
-        _currentTheme = Enum.TryParse<Theme>(savedTheme, true, out var theme) ? theme : Theme.Dark;
+        var resolvedId = ResolveThemeId(savedTheme) ?? _orderedThemes.First().Id;
+        _currentThemeId = resolvedId;
     }
 
     /// <summary>
-    /// Gets the color definitions for the current theme
+    /// Gets the color definitions for the current theme.
     /// </summary>
-    public static Dictionary<string, Color> GetCurrentThemeColors()
+    public static IReadOnlyDictionary<string, Color> GetCurrentThemeColors() => CurrentTheme.Colors;
+
+    /// <summary>
+    /// Gets the color definitions for a specific theme id or alias.
+    /// </summary>
+    public static IReadOnlyDictionary<string, Color> GetThemeColors(string themeId)
     {
-        return _currentTheme == Theme.Dark ? DarkThemeColors : LightThemeColors;
+        EnsureThemesLoaded();
+
+        var resolvedId = ResolveThemeId(themeId)
+            ?? throw new InvalidOperationException($"Theme '{themeId}' was not found.");
+
+        return _themesById[resolvedId].Colors;
     }
 
     /// <summary>
-    /// Gets the color definitions for a specific theme
+    /// Attempts to find a theme definition using its id, display name, or any alias.
+    /// Returns null when the theme cannot be resolved.
     /// </summary>
-    public static Dictionary<string, Color> GetThemeColors(Theme theme)
+    public static ThemeDefinition? FindTheme(string? idOrAlias)
     {
-        return theme == Theme.Dark ? DarkThemeColors : LightThemeColors;
+        EnsureThemesLoaded();
+
+        var resolvedId = ResolveThemeId(idOrAlias);
+        return resolvedId == null ? null : _themesById[resolvedId];
     }
 
     /// <summary>
-    /// Switches to the specified theme and updates application resources
+    /// Switches to the specified theme and updates application resources.
     /// </summary>
-    public static void SetTheme(Theme theme)
+    public static void SetTheme(string themeId)
     {
-        Console.WriteLine($"ThemeManager.SetTheme called with: {theme}");
-        Console.WriteLine($"Current theme before change: {_currentTheme}");
-        
-        if (_currentTheme == theme)
+        EnsureThemesLoaded();
+
+        var resolvedId = ResolveThemeId(themeId);
+        if (resolvedId == null)
         {
-            Console.WriteLine("Theme unchanged, skipping update");
+            Console.WriteLine($"[ThemeManager] Theme '{themeId}' could not be resolved. Request ignored.");
             return;
         }
 
-        _currentTheme = theme;
-        _themeConfig.Set(theme.ToString());
-        Console.WriteLine($"Theme set to: {_currentTheme}");
+        if (string.Equals(resolvedId, _currentThemeId, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("[ThemeManager] Theme unchanged, skipping update.");
+            return;
+        }
 
-        // Update application resources
-        Console.WriteLine("Calling UpdateApplicationResources...");
+        _currentThemeId = resolvedId;
+        _themeConfig.Set(resolvedId);
+        Console.WriteLine($"[ThemeManager] Theme set to '{resolvedId}'.");
+
         UpdateApplicationResources();
-        Console.WriteLine("UpdateApplicationResources completed");
 
-        // Notify listeners
-        ThemeChanged?.Invoke(null, theme);
-        Console.WriteLine("ThemeChanged event fired");
+        ThemeChanged?.Invoke(null, _themesById[resolvedId]);
+        Console.WriteLine("[ThemeManager] ThemeChanged event fired.");
     }
 
     /// <summary>
-    /// Toggles between dark and light themes
+    /// Switches to the specified theme and updates application resources.
+    /// </summary>
+    public static void SetTheme(ThemeDefinition theme) => SetTheme(theme.Id);
+
+    /// <summary>
+    /// Toggles to the next available theme.
     /// </summary>
     public static void ToggleTheme()
     {
-        SetTheme(_currentTheme == Theme.Dark ? Theme.Light : Theme.Dark);
-    }
+        EnsureThemesLoaded();
 
-    /// <summary>
-    /// Updates the Avalonia application resources with current theme colors
-    /// </summary>
-    private static void UpdateApplicationResources()
-    {
-        Console.WriteLine("UpdateApplicationResources started");
-        
-        if (Application.Current == null)
+        if (_orderedThemes.Count <= 1)
         {
-            Console.WriteLine("ERROR: Application.Current is null!");
             return;
         }
 
-        var colors = GetCurrentThemeColors();
-        var resources = Application.Current.Resources;
-        Console.WriteLine($"Updating {colors.Count} theme colors...");
-        
-        foreach (var (key, color) in colors)
+        var currentIndex = _orderedThemes.FindIndex(t => t.Id.Equals(_currentThemeId, StringComparison.OrdinalIgnoreCase));
+        if (currentIndex < 0)
         {
-            var colorKey = $"{key}Color";
-            var brushKey = $"{key}Brush";
-            
-            Console.WriteLine($"  Updating {key}: {color}");
-            
-            // Update color resource - this will update any DynamicResource bindings
-            resources[colorKey] = color;
-            
-            // Update brush resource with new brush instance
-            resources[brushKey] = new SolidColorBrush(color);
+            currentIndex = 0;
         }
-        
-        Console.WriteLine("UpdateApplicationResources completed successfully");
+
+        var nextTheme = _orderedThemes[(currentIndex + 1) % _orderedThemes.Count];
+        SetTheme(nextTheme.Id);
     }
 
     /// <summary>
@@ -200,6 +171,174 @@ public static class ThemeManager
     /// </summary>
     public static void ApplyTheme()
     {
+        EnsureThemesLoaded();
         UpdateApplicationResources();
+    }
+
+    private static void UpdateApplicationResources()
+    {
+        Console.WriteLine("[ThemeManager] UpdateApplicationResources started");
+
+        if (Application.Current == null)
+        {
+            Console.WriteLine("[ThemeManager] ERROR: Application.Current is null!");
+            return;
+        }
+
+        var colors = CurrentTheme.Colors;
+        var resources = Application.Current.Resources;
+        Console.WriteLine($"[ThemeManager] Updating {colors.Count} theme colors...");
+
+        foreach (var (key, color) in colors)
+        {
+            var colorKey = $"{key}Color";
+            var brushKey = $"{key}Brush";
+
+            resources[colorKey] = color;
+            resources[brushKey] = new SolidColorBrush(color);
+        }
+
+        Console.WriteLine("[ThemeManager] UpdateApplicationResources completed successfully");
+    }
+
+    private static void EnsureThemesLoaded()
+    {
+        if (_themesLoaded)
+        {
+            return;
+        }
+
+        lock (_syncRoot)
+        {
+            if (_themesLoaded)
+            {
+                return;
+            }
+
+            LoadThemesFromDisk();
+            _themesLoaded = true;
+        }
+    }
+
+    private static void LoadThemesFromDisk()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, ThemesFolderName);
+        Console.WriteLine($"[ThemeManager] Loading theme definitions from '{directory}'");
+
+        if (!Directory.Exists(directory))
+        {
+            throw new InvalidOperationException($"Theme directory '{directory}' does not exist.");
+        }
+
+        var themeFiles = Directory.EnumerateFiles(directory, ThemeFilePattern, SearchOption.TopDirectoryOnly).ToList();
+        if (themeFiles.Count == 0)
+        {
+            throw new InvalidOperationException($"No theme JSON files found in '{directory}'.");
+        }
+
+        _themesById.Clear();
+        _orderedThemes.Clear();
+
+        foreach (var file in themeFiles)
+        {
+            var json = File.ReadAllText(file);
+            var model = JsonSerializer.Deserialize<ThemeFileModel>(json, _serializerOptions)
+                ?? throw new InvalidOperationException($"Unable to deserialize theme file '{Path.GetFileName(file)}'.");
+
+            if (string.IsNullOrWhiteSpace(model.Id))
+            {
+                throw new InvalidOperationException($"Theme file '{Path.GetFileName(file)}' is missing an 'id' property.");
+            }
+
+            if (model.Colors == null || model.Colors.Count == 0)
+            {
+                throw new InvalidOperationException($"Theme '{model.Id}' must define at least one color.");
+            }
+
+            var parsedColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (key, value) in model.Colors)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new InvalidOperationException($"Theme '{model.Id}' color '{key}' is empty.");
+                }
+
+                parsedColors[key] = Color.Parse(value);
+            }
+
+            var definition = new ThemeDefinition(
+                model.Id.Trim(),
+                model.Name?.Trim() ?? model.Id.Trim(),
+                model.Description?.Trim() ?? string.Empty,
+                parsedColors,
+                model.SortOrder,
+                model.Aliases ?? Array.Empty<string>());
+
+            _themesById[definition.Id] = definition;
+        }
+
+        _orderedThemes.AddRange(_themesById.Values
+            .OrderBy(t => t.SortOrder)
+            .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
+
+        _cachedReadOnlyThemes = new ReadOnlyCollection<ThemeDefinition>(_orderedThemes);
+
+        if (string.IsNullOrWhiteSpace(_currentThemeId) || !_themesById.ContainsKey(_currentThemeId))
+        {
+            _currentThemeId = _orderedThemes.First().Id;
+        }
+    }
+
+    private static string? ResolveThemeId(string? idOrAlias)
+    {
+        if (string.IsNullOrWhiteSpace(idOrAlias))
+        {
+            return null;
+        }
+
+        foreach (var theme in _orderedThemes)
+        {
+            if (theme.Matches(idOrAlias))
+            {
+                return theme.Id;
+            }
+        }
+
+        return null;
+    }
+
+    private sealed class ThemeFileModel
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public int SortOrder { get; set; }
+        public Dictionary<string, string>? Colors { get; set; }
+        public string[]? Aliases { get; set; }
+    }
+}
+
+public sealed record ThemeDefinition(
+    string Id,
+    string Name,
+    string Description,
+    IReadOnlyDictionary<string, Color> Colors,
+    int SortOrder,
+    IReadOnlyList<string> Aliases)
+{
+    public bool Matches(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        if (string.Equals(Id, candidate, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Name, candidate, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return Aliases.Any(alias => string.Equals(alias, candidate, StringComparison.OrdinalIgnoreCase));
     }
 }

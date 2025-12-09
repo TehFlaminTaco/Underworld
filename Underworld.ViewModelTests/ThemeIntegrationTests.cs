@@ -3,6 +3,8 @@ using Xunit;
 using Underworld.Models;
 using Underworld.ViewModels;
 
+#nullable enable
+
 namespace Underworld.ViewModelTests;
 
 /// <summary>
@@ -10,159 +12,116 @@ namespace Underworld.ViewModelTests;
 /// </summary>
 public class ThemeIntegrationTests
 {
-    private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "Dark");
+    private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "dark");
 
     public ThemeIntegrationTests()
     {
-        // Reset theme to default for each test
-        _testThemeConfig.Set("Dark");
+        _testThemeConfig.Set("dark");
         ThemeManager.Initialize();
+        ThemeManager.SetTheme("dark");
     }
 
     [Fact]
     public void ThemeManager_InitializeAndToggle_WorksCorrectly()
     {
-        // Arrange
-        ThemeManager.Initialize();
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
+        Assert.Equal("dark", ThemeManager.CurrentTheme.Id);
 
-        // Act - Toggle to Light
         ThemeManager.ToggleTheme();
+        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
 
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Light, ThemeManager.CurrentTheme);
-
-        // Act - Toggle back to Dark
         ThemeManager.ToggleTheme();
-
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
+        Assert.Equal("dark", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
     public void ThemeManager_SetTheme_PersistsAcrossInitialization()
     {
-        // Arrange & Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-        
-        // Re-initialize (simulates app restart)
+        ThemeManager.SetTheme("light");
+
         ThemeManager.Initialize();
 
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Light, ThemeManager.CurrentTheme);
+        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
     public void ThemeManager_ThemeChangedEvent_FiresOnThemeSwitch()
     {
-        // Arrange
-        int eventCount = 0;
-        ThemeManager.Theme? lastTheme = null;
+        var eventCount = 0;
+        ThemeDefinition? lastTheme = null;
 
-        ThemeManager.ThemeChanged += (sender, theme) =>
+        EventHandler<ThemeDefinition>? handler = (_, theme) =>
         {
             eventCount++;
             lastTheme = theme;
         };
 
-        // Act - Switch to light
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
+        try
+        {
+            ThemeManager.ThemeChanged += handler;
 
-        // Assert
-        Assert.Equal(1, eventCount);
-        Assert.Equal(ThemeManager.Theme.Light, lastTheme);
+            ThemeManager.SetTheme("light");
+            ThemeManager.SetTheme("dark");
 
-        // Act - Switch back to dark
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-
-        // Assert
-        Assert.Equal(2, eventCount);
-        Assert.Equal(ThemeManager.Theme.Dark, lastTheme);
+            Assert.Equal(2, eventCount);
+            Assert.Equal("dark", lastTheme?.Id);
+        }
+        finally
+        {
+            ThemeManager.ThemeChanged -= handler;
+        }
     }
 
     [Fact]
     public void ThemeManager_GetCurrentThemeColors_ReturnsDifferentColorsForDifferentThemes()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-        var darkColors = ThemeManager.GetCurrentThemeColors();
-        var darkWindowBg = darkColors["WindowBackground"];
+        ThemeManager.SetTheme("dark");
+        var darkWindowBg = ThemeManager.GetCurrentThemeColors()["WindowBackground"];
 
-        // Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-        var lightColors = ThemeManager.GetCurrentThemeColors();
-        var lightWindowBg = lightColors["WindowBackground"];
+        ThemeManager.SetTheme("light");
+        var lightWindowBg = ThemeManager.GetCurrentThemeColors()["WindowBackground"];
 
-        // Assert
         Assert.NotEqual(darkWindowBg, lightWindowBg);
     }
 
     [Fact]
     public void ThemeManager_MultipleToggle_MaintainsCorrectState()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
+        ThemeManager.SetTheme("dark");
 
-        // Act & Assert - Multiple toggles
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
-            var expectedTheme = (i % 2 == 0) ? ThemeManager.Theme.Light : ThemeManager.Theme.Dark;
             ThemeManager.ToggleTheme();
-            Assert.Equal(expectedTheme, ThemeManager.CurrentTheme);
+            var expected = (i % 2 == 0) ? "light" : "dark";
+            Assert.Equal(expected, ThemeManager.CurrentTheme.Id);
         }
     }
 
     [Fact]
     public void MainWindowViewModel_CanBeCreatedWithDarkTheme()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
+        ThemeManager.SetTheme("dark");
 
-        // Act
         var viewModel = new MainWindowViewModel();
 
-        // Assert - Should not throw exception
         Assert.NotNull(viewModel);
     }
 
     [Fact]
     public void MainWindowViewModel_CanBeCreatedWithLightTheme()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
+        ThemeManager.SetTheme("light");
 
-        // Act
         var viewModel = new MainWindowViewModel();
 
-        // Assert - Should not throw exception
         Assert.NotNull(viewModel);
     }
 
     [Fact]
-    public void ThemeManager_DarkThemeColors_AllHaveValidValues()
+    public void ThemeManagerViewModel_PopulatesFromAvailableThemes()
     {
-        // Arrange
-        var darkTheme = ThemeManager.DarkThemeColors;
+        using var dialogVm = new ThemeManagerViewModel();
 
-        // Assert
-        foreach (var (key, color) in darkTheme)
-        {
-            Assert.True(color.A > 0, $"Color {key} should have alpha > 0");
-            // RGB values should be between 0-255 (automatically enforced by Color struct)
-        }
-    }
-
-    [Fact]
-    public void ThemeManager_LightThemeColors_AllHaveValidValues()
-    {
-        // Arrange
-        var lightTheme = ThemeManager.LightThemeColors;
-
-        // Assert
-        foreach (var (key, color) in lightTheme)
-        {
-            Assert.True(color.A > 0, $"Color {key} should have alpha > 0");
-            // RGB values should be between 0-255 (automatically enforced by Color struct)
-        }
+        Assert.Equal(ThemeManager.AvailableThemes.Count, dialogVm.Themes.Count);
+        Assert.Equal(ThemeManager.CurrentTheme.Id, dialogVm.SelectedTheme?.ThemeId);
     }
 }

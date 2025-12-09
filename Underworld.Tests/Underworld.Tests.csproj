@@ -10,4 +10,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Underworld\themes\**\*.uw-theme.json" Link="themes\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

@@ -18,6 +18,13 @@
   </ItemGroup>  
 
   <ItemGroup>
+    <None Include="themes\**\*.uw-theme.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Exclude tests folder placed under the project to avoid including test files in the app build -->
     <Compile Remove="Underworld.ViewModelTests\**\*.cs" />
   </ItemGroup>

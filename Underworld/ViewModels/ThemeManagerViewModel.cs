@@ -28,17 +28,19 @@ public class ThemeManagerViewModel : ViewModelBase, IDisposable
 
     public ThemeManagerViewModel()
     {
-        Themes.Add(new ThemeOptionViewModel("Dark", "High-contrast palette optimized for low-light environments.", ThemeManager.Theme.Dark));
-        Themes.Add(new ThemeOptionViewModel("Light", "Bright palette that pairs well with daylight viewing.", ThemeManager.Theme.Light));
+        foreach (var theme in ThemeManager.AvailableThemes)
+        {
+            Themes.Add(new ThemeOptionViewModel(theme));
+        }
 
         ThemeManager.ThemeChanged += OnThemeChanged;
         UpdateCurrentThemeState(ThemeManager.CurrentTheme);
 
-        SelectedTheme = Themes.FirstOrDefault(t => t.Theme == ThemeManager.CurrentTheme) ?? Themes.FirstOrDefault();
+        SelectedTheme = Themes.FirstOrDefault(t => t.IsMatch(ThemeManager.CurrentTheme.Id)) ?? Themes.FirstOrDefault();
 
         _applyThemeCommand = new RelayCommand(
             _ => ApplySelectedTheme(),
-            _ => SelectedTheme != null && SelectedTheme.Theme != ThemeManager.CurrentTheme
+            _ => SelectedTheme != null && !SelectedTheme.IsCurrent
         );
     }
 
@@ -49,22 +51,22 @@ public class ThemeManagerViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        ThemeManager.SetTheme(SelectedTheme.Theme);
+        ThemeManager.SetTheme(SelectedTheme.ThemeId);
         return true;
     }
 
-    private void OnThemeChanged(object? sender, ThemeManager.Theme e)
+    private void OnThemeChanged(object? sender, ThemeDefinition e)
     {
         UpdateCurrentThemeState(e);
-        SelectedTheme = Themes.FirstOrDefault(t => t.Theme == e) ?? SelectedTheme;
+        SelectedTheme = Themes.FirstOrDefault(t => t.IsMatch(e.Id)) ?? SelectedTheme;
         (_applyThemeCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
-    private void UpdateCurrentThemeState(ThemeManager.Theme theme)
+    private void UpdateCurrentThemeState(ThemeDefinition theme)
     {
         foreach (var option in Themes)
         {
-            option.IsCurrent = option.Theme == theme;
+            option.IsCurrent = option.IsMatch(theme.Id);
         }
     }
 
@@ -76,16 +78,15 @@ public class ThemeManagerViewModel : ViewModelBase, IDisposable
 
 public class ThemeOptionViewModel : ViewModelBase
 {
-    public ThemeOptionViewModel(string name, string description, ThemeManager.Theme theme)
+    public ThemeOptionViewModel(ThemeDefinition theme)
     {
-        Name = name;
-        Description = description;
         Theme = theme;
     }
 
-    public string Name { get; }
-    public string Description { get; }
-    public ThemeManager.Theme Theme { get; }
+    public ThemeDefinition Theme { get; }
+    public string ThemeId => Theme.Id;
+    public string Name => Theme.Name;
+    public string Description => Theme.Description;
 
     private bool _isCurrent;
     public bool IsCurrent
@@ -93,4 +94,6 @@ public class ThemeOptionViewModel : ViewModelBase
         get => _isCurrent;
         set => SetProperty(ref _isCurrent, value);
     }
+
+    public bool IsMatch(string themeId) => Theme.Id.Equals(themeId, StringComparison.OrdinalIgnoreCase);
 }

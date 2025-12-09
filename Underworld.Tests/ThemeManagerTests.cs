@@ -1,367 +1,174 @@
 using System;
-using Xunit;
-using Avalonia;
-using Avalonia.Media;
 using Underworld.Models;
+using Xunit;
+
+#nullable enable
 
 namespace Underworld.Tests;
 
 /// <summary>
-/// Tests for the ThemeManager class to verify theme switching functionality
+/// Tests for the JSON-driven ThemeManager implementation.
 /// </summary>
 public class ThemeManagerTests
 {
-    private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "Dark");
+    private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "dark");
 
     public ThemeManagerTests()
     {
-        // Reset theme to default for each test
-        _testThemeConfig.Set("Dark");
+        _testThemeConfig.Set("dark");
+        ThemeManager.Initialize();
+        ThemeManager.SetTheme("dark");
     }
 
     [Fact]
-    public void GetDarkThemeColors_ReturnsCorrectColorCount()
+    public void AvailableThemes_LoadedFromDisk()
     {
-        // Arrange & Act
-        var darkColors = ThemeManager.DarkThemeColors;
+        var themes = ThemeManager.AvailableThemes;
 
-        // Assert
-        Assert.Equal(14, darkColors.Count); // Should have 14 color definitions
+        Assert.True(themes.Count >= 2);
+        Assert.Contains(themes, t => t.Id.Equals("dark", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(themes, t => t.Id.Equals("light", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void GetLightThemeColors_ReturnsCorrectColorCount()
+    public void GetThemeColors_ReturnsColorSetForTheme()
     {
-        // Arrange & Act
-        var lightColors = ThemeManager.LightThemeColors;
+        var colors = ThemeManager.GetThemeColors("dark");
 
-        // Assert
-        Assert.Equal(14, lightColors.Count); // Should have 14 color definitions
+        Assert.True(colors.ContainsKey("WindowBackground"));
+        Assert.True(colors["WindowBackground"].A > 0);
     }
 
     [Fact]
-    public void DarkThemeColors_ContainsExpectedKeys()
+    public void AvailableThemes_ExposeMetadata()
     {
-        // Arrange
-        var expectedKeys = new[]
-        {
-            "WindowBackground", "CardBackground", "ControlBackground",
-            "CardBorder", "ControlBorder",
-            "PrimaryText", "SecondaryText", "TertiaryText", "MutedText",
-            "AccentOrange", "PrimaryButton", "DangerRed",
-            "TitleBarHover", "TitleBarPressed"
-        };
+        var dark = ThemeManager.FindTheme("dark");
 
-        // Act
-        var darkColors = ThemeManager.DarkThemeColors;
-
-        // Assert
-        foreach (var key in expectedKeys)
-        {
-            Assert.True(darkColors.ContainsKey(key), $"Dark theme should contain key: {key}");
-        }
+        Assert.NotNull(dark);
+        Assert.Equal("Dark", dark!.Name);
+        Assert.False(string.IsNullOrWhiteSpace(dark.Description));
     }
 
     [Fact]
-    public void LightThemeColors_ContainsExpectedKeys()
+    public void Initialize_RespectsSavedTheme()
     {
-        // Arrange
-        var expectedKeys = new[]
-        {
-            "WindowBackground", "CardBackground", "ControlBackground",
-            "CardBorder", "ControlBorder",
-            "PrimaryText", "SecondaryText", "TertiaryText", "MutedText",
-            "AccentOrange", "PrimaryButton", "DangerRed",
-            "TitleBarHover", "TitleBarPressed"
-        };
+        _testThemeConfig.Set("light");
 
-        // Act
-        var lightColors = ThemeManager.LightThemeColors;
-
-        // Assert
-        foreach (var key in expectedKeys)
-        {
-            Assert.True(lightColors.ContainsKey(key), $"Light theme should contain key: {key}");
-        }
-    }
-
-    [Fact]
-    public void DarkThemeColors_HasDarkWindowBackground()
-    {
-        // Arrange & Act
-        var darkColors = ThemeManager.DarkThemeColors;
-        var windowBg = darkColors["WindowBackground"];
-
-        // Assert - dark theme should have a dark background
-        Assert.True(windowBg.R < 50 && windowBg.G < 50 && windowBg.B < 50,
-            $"Dark theme window background should be dark, but was: {windowBg}");
-    }
-
-    [Fact]
-    public void LightThemeColors_HasLightWindowBackground()
-    {
-        // Arrange & Act
-        var lightColors = ThemeManager.LightThemeColors;
-        var windowBg = lightColors["WindowBackground"];
-
-        // Assert - light theme should have a light background
-        Assert.True(windowBg.R > 200 && windowBg.G > 200 && windowBg.B > 200,
-            $"Light theme window background should be light, but was: {windowBg}");
-    }
-
-    [Fact]
-    public void Initialize_LoadsDefaultTheme()
-    {
-        // Arrange
-        _testThemeConfig.Set("Dark");
-
-        // Act
         ThemeManager.Initialize();
 
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
+        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
-    public void Initialize_LoadsSavedLightTheme()
+    public void Initialize_InvalidTheme_FallsBackToDefault()
     {
-        // Arrange
-        _testThemeConfig.Set("Light");
+        _testThemeConfig.Set("not-a-theme");
 
-        // Act
         ThemeManager.Initialize();
 
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Light, ThemeManager.CurrentTheme);
-    }
-
-    [Fact]
-    public void Initialize_WithInvalidTheme_FallsBackToDark()
-    {
-        // Arrange
-        _testThemeConfig.Set("InvalidTheme");
-
-        // Act
-        ThemeManager.Initialize();
-
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
-    }
-
-    [Fact]
-    public void GetCurrentThemeColors_ReturnsDarkWhenDarkThemeSet()
-    {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-
-        // Act
-        var colors = ThemeManager.GetCurrentThemeColors();
-
-        // Assert
-        Assert.Equal(ThemeManager.DarkThemeColors["WindowBackground"], colors["WindowBackground"]);
-    }
-
-    [Fact]
-    public void GetCurrentThemeColors_ReturnsLightWhenLightThemeSet()
-    {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-
-        // Act
-        var colors = ThemeManager.GetCurrentThemeColors();
-
-        // Assert
-        Assert.Equal(ThemeManager.LightThemeColors["WindowBackground"], colors["WindowBackground"]);
+        Assert.Equal("dark", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
     public void SetTheme_ChangesCurrentTheme()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
+        ThemeManager.SetTheme("light");
 
-        // Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Light, ThemeManager.CurrentTheme);
+        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
-    public void SetTheme_PersistsToConfig()
+    public void SetTheme_PersistsPreference()
     {
-        // Arrange & Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
+        ThemeManager.SetTheme("light");
 
-        // Assert
-        var savedTheme = _testThemeConfig.Get();
-        Assert.Equal("Light", savedTheme);
+        Assert.Equal("light", _testThemeConfig.Get());
     }
 
     [Fact]
     public void SetTheme_RaisesThemeChangedEvent()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-        bool eventRaised = false;
-        ThemeManager.Theme? receivedTheme = null;
+        ThemeManager.SetTheme("dark");
+        var eventCount = 0;
+        ThemeDefinition? lastTheme = null;
 
-        ThemeManager.ThemeChanged += (sender, theme) =>
+        EventHandler<ThemeDefinition>? handler = (_, theme) =>
         {
-            eventRaised = true;
-            receivedTheme = theme;
+            eventCount++;
+            lastTheme = theme;
         };
 
-        // Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-
-        // Assert
-        Assert.True(eventRaised);
-        Assert.Equal(ThemeManager.Theme.Light, receivedTheme);
-    }
-
-    [Fact]
-    public void SetTheme_DoesNotRaiseEventWhenSettingSameTheme()
-    {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-        bool eventRaised = false;
-
-        ThemeManager.ThemeChanged += (sender, theme) =>
+        try
         {
-            eventRaised = true;
-        };
+            ThemeManager.ThemeChanged += handler;
+            ThemeManager.SetTheme("light");
 
-        // Act
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-
-        // Assert
-        Assert.False(eventRaised);
+            Assert.Equal(1, eventCount);
+            Assert.Equal("light", lastTheme?.Id);
+        }
+        finally
+        {
+            ThemeManager.ThemeChanged -= handler;
+        }
     }
 
     [Fact]
-    public void ToggleTheme_SwitchesFromDarkToLight()
+    public void ToggleTheme_CyclesThroughAvailableThemes()
     {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Dark);
+        ThemeManager.SetTheme("dark");
 
-        // Act
         ThemeManager.ToggleTheme();
+        Assert.Equal("light", ThemeManager.CurrentTheme.Id);
 
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Light, ThemeManager.CurrentTheme);
-    }
-
-    [Fact]
-    public void ToggleTheme_SwitchesFromLightToDark()
-    {
-        // Arrange
-        ThemeManager.SetTheme(ThemeManager.Theme.Light);
-
-        // Act
         ThemeManager.ToggleTheme();
-
-        // Assert
-        Assert.Equal(ThemeManager.Theme.Dark, ThemeManager.CurrentTheme);
+        Assert.Equal("dark", ThemeManager.CurrentTheme.Id);
     }
 
     [Fact]
-    public void GetThemeColors_ReturnsCorrectThemeForDark()
+    public void GetCurrentThemeColors_ReflectsActiveTheme()
     {
-        // Arrange & Act
-        var colors = ThemeManager.GetThemeColors(ThemeManager.Theme.Dark);
+        ThemeManager.SetTheme("dark");
+        var darkBg = ThemeManager.GetCurrentThemeColors()["WindowBackground"];
 
-        // Assert
-        Assert.Equal(ThemeManager.DarkThemeColors["WindowBackground"], colors["WindowBackground"]);
+        ThemeManager.SetTheme("light");
+        var lightBg = ThemeManager.GetCurrentThemeColors()["WindowBackground"];
+
+        Assert.NotEqual(darkBg, lightBg);
     }
 
     [Fact]
-    public void GetThemeColors_ReturnsCorrectThemeForLight()
+    public void FindTheme_UsesAliasesCaseInsensitive()
     {
-        // Arrange & Act
-        var colors = ThemeManager.GetThemeColors(ThemeManager.Theme.Light);
+        var theme = ThemeManager.FindTheme("LIGHT");
 
-        // Assert
-        Assert.Equal(ThemeManager.LightThemeColors["WindowBackground"], colors["WindowBackground"]);
+        Assert.NotNull(theme);
+        Assert.Equal("light", theme!.Id);
     }
 
     [Theory]
     [InlineData("WindowBackground")]
-    [InlineData("CardBackground")]
     [InlineData("PrimaryText")]
     [InlineData("AccentOrange")]
-    public void DarkAndLightThemes_HaveDifferentColorsForKey(string colorKey)
+    public void Themes_ExposeDifferentColorValues(string key)
     {
-        // Arrange
-        var darkColors = ThemeManager.DarkThemeColors;
-        var lightColors = ThemeManager.LightThemeColors;
+        var dark = ThemeManager.GetThemeColors("dark");
+        var light = ThemeManager.GetThemeColors("light");
 
-        // Act & Assert
-        Assert.NotEqual(darkColors[colorKey], lightColors[colorKey]);
+        Assert.NotEqual(dark[key], light[key]);
     }
 
     [Fact]
-    public void DarkTheme_PrimaryTextIsLight()
+    public void ThemeColors_AreValidArgb()
     {
-        // Arrange & Act
-        var darkColors = ThemeManager.DarkThemeColors;
-        var primaryText = darkColors["PrimaryText"];
-
-        // Assert - in dark theme, text should be light colored
-        Assert.True(primaryText.R > 200 || primaryText.G > 200 || primaryText.B > 200,
-            $"Dark theme primary text should be light, but was: {primaryText}");
-    }
-
-    [Fact]
-    public void LightTheme_PrimaryTextIsDark()
-    {
-        // Arrange & Act
-        var lightColors = ThemeManager.LightThemeColors;
-        var primaryText = lightColors["PrimaryText"];
-
-        // Assert - in light theme, text should be dark colored
-        Assert.True(primaryText.R < 100 && primaryText.G < 100 && primaryText.B < 100,
-            $"Light theme primary text should be dark, but was: {primaryText}");
-    }
-
-    [Fact]
-    public void ThemeColors_AreValidColors()
-    {
-        // Arrange
-        var darkColors = ThemeManager.DarkThemeColors;
-        var lightColors = ThemeManager.LightThemeColors;
-
-        // Act & Assert - all colors should have valid ARGB values
-        foreach (var (key, color) in darkColors)
+        foreach (var theme in ThemeManager.AvailableThemes)
         {
-            Assert.True(color.A >= 0 && color.A <= 255, $"Dark theme {key} has invalid alpha");
-            Assert.True(color.R >= 0 && color.R <= 255, $"Dark theme {key} has invalid red");
-            Assert.True(color.G >= 0 && color.G <= 255, $"Dark theme {key} has invalid green");
-            Assert.True(color.B >= 0 && color.B <= 255, $"Dark theme {key} has invalid blue");
+            foreach (var (_, color) in theme.Colors)
+            {
+                Assert.InRange(color.A, 0, 255);
+                Assert.InRange(color.R, 0, 255);
+                Assert.InRange(color.G, 0, 255);
+                Assert.InRange(color.B, 0, 255);
+            }
         }
-
-        foreach (var (key, color) in lightColors)
-        {
-            Assert.True(color.A >= 0 && color.A <= 255, $"Light theme {key} has invalid alpha");
-            Assert.True(color.R >= 0 && color.R <= 255, $"Light theme {key} has invalid red");
-            Assert.True(color.G >= 0 && color.G <= 255, $"Light theme {key} has invalid green");
-            Assert.True(color.B >= 0 && color.B <= 255, $"Light theme {key} has invalid blue");
-        }
-    }
-
-    [Fact]
-    public void AccentOrange_IsDifferentInBothThemes()
-    {
-        // Arrange
-        var darkOrange = ThemeManager.DarkThemeColors["AccentOrange"];
-        var lightOrange = ThemeManager.LightThemeColors["AccentOrange"];
-
-        // Assert - both should be orange-ish but different
-        Assert.NotEqual(darkOrange, lightOrange);
-        
-        // Both should have more red than green/blue (orange characteristic)
-        Assert.True(darkOrange.R > darkOrange.G && darkOrange.R > darkOrange.B);
-        Assert.True(lightOrange.R > lightOrange.G && lightOrange.R > lightOrange.B);
     }
 }

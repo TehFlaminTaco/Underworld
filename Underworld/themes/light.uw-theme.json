@@ -1,0 +1,28 @@
+{
+  "id": "light",
+  "name": "Light",
+  "description": "Bright palette tuned for daylight viewing.",
+  "sortOrder": 1,
+  "aliases": ["Light"],
+  "colors": {
+    "WindowBackground": "#F5F5F5",
+    "CardBackground": "#FFFFFF",
+    "ControlBackground": "#FAFAFA",
+    "CardBorder": "#E0E0E0",
+    "ControlBorder": "#CCCCCC",
+    "PrimaryText": "#1A1D22",
+    "SecondaryText": "#404040",
+    "TertiaryText": "#707070",
+    "MutedText": "#505050",
+    "AccentOrange": "#FF8C00",
+    "PrimaryButton": "#D04A1E",
+    "PrimaryButtonForeground": "#FFFFFF",
+    "DangerRed": "#C50F1F",
+    "ScrollBarTrack": "#E8E8E8",
+    "ScrollBarThumb": "#C5C5C5",
+    "SelectionBackground": "#FF8C00",
+    "SelectionForeground": "#1A1D22",
+    "TitleBarHover": "#E5E5E5",
+    "TitleBarPressed": "#D0D0D0"
+  }
+}

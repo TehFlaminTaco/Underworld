@@ -52,14 +52,14 @@ public partial class MainWindowViewModel : ViewModelBase
         SetDarkThemeCommand = new RelayCommand(_ => 
         {
             Console.WriteLine("SetDarkThemeCommand executed!");
-            ThemeManager.SetTheme(ThemeManager.Theme.Dark);
-            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme}");
+            ThemeManager.SetTheme("dark");
+            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme.Id}");
         });
         SetLightThemeCommand = new RelayCommand(_ => 
         {
             Console.WriteLine("SetLightThemeCommand executed!");
-            ThemeManager.SetTheme(ThemeManager.Theme.Light);
-            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme}");
+            ThemeManager.SetTheme("light");
+            Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme.Id}");
         });
 
         AllWads.Clear();

@@ -15,4 +15,10 @@
     <ProjectReference Include="..\Underworld\Underworld.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\Underworld\themes\**\*.uw-theme.json" Link="themes\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
