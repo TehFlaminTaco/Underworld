@@ -1,0 +1,33 @@
+{
+  "id": "nebula",
+  "name": "Nebula",
+  "description": "Deep space theme with indigo shadows and cyan highlights.",
+  "sortOrder": 20,
+  "aliases": ["Nebula", "Deep Space"],
+  "colors": {
+    "WindowBackground": "#050716",
+    "CardBackground": "#090B23",
+    "ControlBackground": "#11153A",
+    "CardBorder": "#232754",
+    "ControlBorder": "#323A76",
+
+    "PrimaryText": "#E8EDFF",
+    "SecondaryText": "#C5D2FF",
+    "TertiaryText": "#9FAAE0",
+    "MutedText": "#7B83B4",
+
+    "AccentOrange": "#5AD0FF",
+    "PrimaryButton": "#5AD0FF",
+    "PrimaryButtonForeground": "#050716",
+    "DangerRed": "#FF4B6E",
+
+    "ScrollBarTrack": "#050716",
+    "ScrollBarThumb": "#232754",
+
+    "SelectionBackground": "#2B8CFF",
+    "SelectionForeground": "#050716",
+
+    "TitleBarHover": "#090B23",
+    "TitleBarPressed": "#07081D"
+  }
+}

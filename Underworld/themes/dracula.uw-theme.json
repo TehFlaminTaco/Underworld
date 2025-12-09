@@ -1,0 +1,33 @@
+{
+  "id": "dracula",
+  "name": "Dracula",
+  "description": "Classic Dracula theme with purple, cyan, and pink accents.",
+  "sortOrder": 17,
+  "aliases": ["Dracula"],
+  "colors": {
+    "WindowBackground": "#282A36",
+    "CardBackground": "#343746",
+    "ControlBackground": "#44475A",
+    "CardBorder": "#51546A",
+    "ControlBorder": "#6B6F8A",
+
+    "PrimaryText": "#F8F8F2",
+    "SecondaryText": "#E2E2DC",
+    "TertiaryText": "#C0C0B7",
+    "MutedText": "#6272A4",
+
+    "AccentOrange": "#8BE9FD",
+    "PrimaryButton": "#FF79C6",
+    "PrimaryButtonForeground": "#282A36",
+    "DangerRed": "#FF5555",
+
+    "ScrollBarTrack": "#282A36",
+    "ScrollBarThumb": "#44475A",
+
+    "SelectionBackground": "#44475A",
+    "SelectionForeground": "#F8F8F2",
+
+    "TitleBarHover": "#343746",
+    "TitleBarPressed": "#232530"
+  }
+}

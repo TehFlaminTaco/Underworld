@@ -1,0 +1,33 @@
+{
+  "id": "hellfire",
+  "name": "Hellfire (Fireblu)",
+  "description": "Fireblu stone lit by searing hellfire: cobalt slabs with molten red-orange accents.",
+  "sortOrder": 3,
+  "aliases": ["Hellfire", "Fireblu Hellfire"],
+  "colors": {
+    "WindowBackground": "#050918",
+    "CardBackground": "#0C1433",
+    "ControlBackground": "#151E46",
+    "CardBorder": "#263769",
+    "ControlBorder": "#3A4D8F",
+
+    "PrimaryText": "#F3F6FF",
+    "SecondaryText": "#C3CCFF",
+    "TertiaryText": "#8E96D6",
+    "MutedText": "#5A628F",
+
+    "AccentOrange": "#FF4500",
+    "PrimaryButton": "#C93A00",
+    "PrimaryButtonForeground": "#FFFFFF",
+    "DangerRed": "#E01A1A",
+
+    "ScrollBarTrack": "#050918",
+    "ScrollBarThumb": "#293566",
+
+    "SelectionBackground": "#C52200",
+    "SelectionForeground": "#FFFFFF",
+    
+    "TitleBarHover": "#10173A",
+    "TitleBarPressed": "#0B112D"
+  }
+}

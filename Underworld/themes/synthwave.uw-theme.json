@@ -1,0 +1,33 @@
+{
+  "id": "synthwave",
+  "name": "Synthwave",
+  "description": "Neon synthwave palette with deep purple and hot pink accents.",
+  "sortOrder": 18,
+  "aliases": ["Synthwave", "Vaporwave"],
+  "colors": {
+    "WindowBackground": "#140820",
+    "CardBackground": "#1D0F2E",
+    "ControlBackground": "#26163B",
+    "CardBorder": "#3B2754",
+    "ControlBorder": "#4B3070",
+
+    "PrimaryText": "#F9F3FF",
+    "SecondaryText": "#E0C8FF",
+    "TertiaryText": "#BDA0E6",
+    "MutedText": "#8F7AB7",
+
+    "AccentOrange": "#FF6AC1",
+    "PrimaryButton": "#FF6AC1",
+    "PrimaryButtonForeground": "#140820",
+    "DangerRed": "#FF3B6C",
+
+    "ScrollBarTrack": "#140820",
+    "ScrollBarThumb": "#3B2754",
+
+    "SelectionBackground": "#40B4FF",
+    "SelectionForeground": "#0B0614",
+
+    "TitleBarHover": "#1D0F2E",
+    "TitleBarPressed": "#160A24"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "solarized_dark",
+  "name": "Solarized Dark",
+  "description": "Classic Solarized Dark palette.",
+  "sortOrder": 11,
+  "aliases": ["Solarized Dark"],
+  "colors": {
+    "WindowBackground": "#02252F",
+    "CardBackground": "#073642",
+    "ControlBackground": "#0B3640",
+    "CardBorder": "#586E75",
+    "ControlBorder": "#657B83",
+
+    "PrimaryText": "#EEE8D5",
+    "SecondaryText": "#93A1A1",
+    "TertiaryText": "#839496",
+    "MutedText": "#6C7E82",
+
+    "AccentOrange": "#268BD2",
+    "PrimaryButton": "#268BD2",
+    "PrimaryButtonForeground": "#002B36",
+    "DangerRed": "#DC322F",
+
+    "ScrollBarTrack": "#02252F",
+    "ScrollBarThumb": "#586E75",
+
+    "SelectionBackground": "#268BD2",
+    "SelectionForeground": "#002B36",
+
+    "TitleBarHover": "#0B3640",
+    "TitleBarPressed": "#062630"
+  }
+}

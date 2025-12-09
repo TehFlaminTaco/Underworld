@@ -68,6 +68,40 @@ public static class ThemeManager
     }
 
     /// <summary>
+    /// Gets the absolute path to the application's themes directory.
+    /// </summary>
+    public static string GetThemesDirectoryPath() => Path.Combine(AppContext.BaseDirectory, ThemesFolderName);
+
+    /// <summary>
+    /// Reloads theme definitions from disk and reapplies the current theme.
+    /// </summary>
+    public static IReadOnlyList<ThemeDefinition> ReloadThemes()
+    {
+        lock (_syncRoot)
+        {
+            LoadThemesFromDisk();
+            _themesLoaded = true;
+        }
+
+        var themeChanged = false;
+        if (string.IsNullOrWhiteSpace(_currentThemeId) || !_themesById.ContainsKey(_currentThemeId))
+        {
+            _currentThemeId = _orderedThemes.First().Id;
+            _themeConfig.Set(_currentThemeId);
+            themeChanged = true;
+        }
+
+        UpdateApplicationResources();
+
+        if (themeChanged)
+        {
+            ThemeChanged?.Invoke(null, _themesById[_currentThemeId]);
+        }
+
+        return AvailableThemes;
+    }
+
+    /// <summary>
     /// Initializes the theme system by loading the saved theme preference.
     /// </summary>
     public static void Initialize()
@@ -222,7 +256,7 @@ public static class ThemeManager
 
     private static void LoadThemesFromDisk()
     {
-        var directory = Path.Combine(AppContext.BaseDirectory, ThemesFolderName);
+        var directory = GetThemesDirectoryPath();
         Console.WriteLine($"[ThemeManager] Loading theme definitions from '{directory}'");
 
         if (!Directory.Exists(directory))

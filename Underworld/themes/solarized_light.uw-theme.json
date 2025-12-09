@@ -1,0 +1,33 @@
+{
+  "id": "solarized_light",
+  "name": "Solarized Light",
+  "description": "Classic Solarized Light palette.",
+  "sortOrder": 12,
+  "aliases": ["Solarized Light"],
+  "colors": {
+    "WindowBackground": "#FDF6E3",
+    "CardBackground": "#EEE8D5",
+    "ControlBackground": "#F6F0DD",
+    "CardBorder": "#D3C9A6",
+    "ControlBorder": "#C2BBA0",
+
+    "PrimaryText": "#073642",
+    "SecondaryText": "#586E75",
+    "TertiaryText": "#657B83",
+    "MutedText": "#93A1A1",
+
+    "AccentOrange": "#CB4B16",
+    "PrimaryButton": "#268BD2",
+    "PrimaryButtonForeground": "#FDF6E3",
+    "DangerRed": "#DC322F",
+
+    "ScrollBarTrack": "#FDF6E3",
+    "ScrollBarThumb": "#D3C9A6",
+
+    "SelectionBackground": "#EEE8D5",
+    "SelectionForeground": "#073642",
+
+    "TitleBarHover": "#EEE8D5",
+    "TitleBarPressed": "#E0D8C2"
+  }
+}

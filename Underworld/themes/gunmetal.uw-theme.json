@@ -1,0 +1,33 @@
+{
+  "id": "gunmetal",
+  "name": "Gunmetal",
+  "description": "Industrial steel theme with cool greys and hazard yellow accents.",
+  "sortOrder": 21,
+  "aliases": ["Gunmetal", "Industrial"],
+  "colors": {
+    "WindowBackground": "#24272B",
+    "CardBackground": "#2E3338",
+    "ControlBackground": "#373D44",
+    "CardBorder": "#4A5159",
+    "ControlBorder": "#5A636D",
+
+    "PrimaryText": "#F0F2F5",
+    "SecondaryText": "#D9DEE3",
+    "TertiaryText": "#B2BAC3",
+    "MutedText": "#858E99",
+
+    "AccentOrange": "#D7A72D",
+    "PrimaryButton": "#D7A72D",
+    "PrimaryButtonForeground": "#24272B",
+    "DangerRed": "#D9534F",
+
+    "ScrollBarTrack": "#24272B",
+    "ScrollBarThumb": "#4A5159",
+
+    "SelectionBackground": "#4B84C4",
+    "SelectionForeground": "#F0F2F5",
+
+    "TitleBarHover": "#2E3338",
+    "TitleBarPressed": "#25292E"
+  }
+}

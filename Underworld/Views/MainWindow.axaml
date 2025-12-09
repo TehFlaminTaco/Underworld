@@ -94,8 +94,9 @@
                 </Menu>
 
                 <!-- Centered Title -->
-                <TextBlock Grid.Column="2" Text="Underworld" FontSize="12" FontWeight="SemiBold" 
-                           Foreground="{DynamicResource AccentOrangeBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="0" Grid.ColumnSpan="4" Text="Underworld" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentOrangeBrush}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                           IsHitTestVisible="False" />
 
                 <!-- Window Controls -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0">

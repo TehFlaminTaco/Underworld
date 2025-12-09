@@ -1,0 +1,33 @@
+{
+  "id": "nord_light",
+  "name": "Nord Light",
+  "description": "Light variant of Nord with soft blue-greys.",
+  "sortOrder": 14,
+  "aliases": ["Nord Light"],
+  "colors": {
+    "WindowBackground": "#ECEFF4",
+    "CardBackground": "#E5E9F0",
+    "ControlBackground": "#D8DEE9",
+    "CardBorder": "#C0CAD8",
+    "ControlBorder": "#B3BFD1",
+
+    "PrimaryText": "#2E3440",
+    "SecondaryText": "#4C566A",
+    "TertiaryText": "#5E6B80",
+    "MutedText": "#7A869A",
+
+    "AccentOrange": "#88C0D0",
+    "PrimaryButton": "#5E81AC",
+    "PrimaryButtonForeground": "#ECEFF4",
+    "DangerRed": "#BF616A",
+
+    "ScrollBarTrack": "#ECEFF4",
+    "ScrollBarThumb": "#C0CAD8",
+
+    "SelectionBackground": "#D8DEE9",
+    "SelectionForeground": "#2E3440",
+
+    "TitleBarHover": "#E5E9F0",
+    "TitleBarPressed": "#D8DEE9"
+  }
+}

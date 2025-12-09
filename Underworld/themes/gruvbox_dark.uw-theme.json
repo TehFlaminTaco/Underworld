@@ -1,0 +1,33 @@
+{
+  "id": "gruvbox_dark",
+  "name": "Gruvbox Dark",
+  "description": "Warm, contrasty Gruvbox Dark palette.",
+  "sortOrder": 15,
+  "aliases": ["Gruvbox Dark"],
+  "colors": {
+    "WindowBackground": "#282828",
+    "CardBackground": "#3C3836",
+    "ControlBackground": "#504945",
+    "CardBorder": "#665C54",
+    "ControlBorder": "#7C6F64",
+
+    "PrimaryText": "#EBDBB2",
+    "SecondaryText": "#D5C4A1",
+    "TertiaryText": "#BDAE93",
+    "MutedText": "#928374",
+
+    "AccentOrange": "#FE8019",
+    "PrimaryButton": "#FABD2F",
+    "PrimaryButtonForeground": "#282828",
+    "DangerRed": "#FB4934",
+
+    "ScrollBarTrack": "#282828",
+    "ScrollBarThumb": "#665C54",
+
+    "SelectionBackground": "#504945",
+    "SelectionForeground": "#EBDBB2",
+
+    "TitleBarHover": "#3C3836",
+    "TitleBarPressed": "#32302F"
+  }
+}

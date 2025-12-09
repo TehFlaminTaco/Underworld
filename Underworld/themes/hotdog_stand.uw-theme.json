@@ -1,0 +1,33 @@
+{
+  "id": "hotdog_stand",
+  "name": "Hotdog Stand",
+  "description": "The infamous Hotdog Stand theme. Bold. Loud. Unusable.",
+  "sortOrder": 99,
+  "aliases": ["Hotdog", "Hotdog Stand"],
+  "colors": {
+    "WindowBackground": "#FFFF00",
+    "CardBackground": "#FF0000",
+    "ControlBackground": "#FF0000",
+    "CardBorder": "#000000",
+    "ControlBorder": "#000000",
+
+    "PrimaryText": "#000000",
+    "SecondaryText": "#111111",
+    "TertiaryText": "#222222",
+    "MutedText": "#333333",
+
+    "AccentOrange": "#FFFF00",
+    "PrimaryButton": "#FFFF00",
+    "PrimaryButtonForeground": "#000000",
+    "DangerRed": "#FF0000",
+
+    "ScrollBarTrack": "#FFFF00",
+    "ScrollBarThumb": "#000000",
+
+    "SelectionBackground": "#000000",
+    "SelectionForeground": "#FFFF00",
+
+    "TitleBarHover": "#FF0000",
+    "TitleBarPressed": "#CC0000"
+  }
+}

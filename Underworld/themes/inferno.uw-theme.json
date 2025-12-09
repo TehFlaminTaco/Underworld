@@ -1,0 +1,33 @@
+{
+  "id": "inferno",
+  "name": "Inferno",
+  "description": "Hellfire-inspired theme with blackened rock and lava reds.",
+  "sortOrder": 19,
+  "aliases": ["Inferno", "Hellfire"],
+  "colors": {
+    "WindowBackground": "#120608",
+    "CardBackground": "#1B0A10",
+    "ControlBackground": "#261018",
+    "CardBorder": "#3A1821",
+    "ControlBorder": "#4C202B",
+
+    "PrimaryText": "#F9E1D6",
+    "SecondaryText": "#E6C0B0",
+    "TertiaryText": "#CFA193",
+    "MutedText": "#A06B64",
+
+    "AccentOrange": "#FF7A2A",
+    "PrimaryButton": "#E0451B",
+    "PrimaryButtonForeground": "#120608",
+    "DangerRed": "#FF2E2E",
+
+    "ScrollBarTrack": "#120608",
+    "ScrollBarThumb": "#3A1821",
+
+    "SelectionBackground": "#7A1010",
+    "SelectionForeground": "#F9E1D6",
+
+    "TitleBarHover": "#1B0A10",
+    "TitleBarPressed": "#15070C"
+  }
+}

@@ -9,20 +9,25 @@
     "CardBackground": "#252931",
     "ControlBackground": "#3F3F46",
     "CardBorder": "#333842",
-    "ControlBorder": "#555555",
+    "ControlBorder": "#6A6F78",
+
     "PrimaryText": "#FFFFFF",
     "SecondaryText": "#BFBFBF",
-    "TertiaryText": "#808080",
-    "MutedText": "#B0B6C0",
-    "AccentOrange": "#FFB347",
-    "PrimaryButton": "#FF4B2B",
+    "TertiaryText": "#B0B6C0",
+    "MutedText": "#808080",
+
+    "AccentOrange": "#D77A1F",
+    "PrimaryButton": "#D77A1F",
     "PrimaryButtonForeground": "#FFFFFF",
     "DangerRed": "#E81123",
+
     "ScrollBarTrack": "#1F232A",
-    "ScrollBarThumb": "#4B4F5A",
-    "SelectionBackground": "#FFB347",
+    "ScrollBarThumb": "#5C616E",
+
+    "SelectionBackground": "#D77A1F",
     "SelectionForeground": "#1A1D22",
-    "TitleBarHover": "#333842",
-    "TitleBarPressed": "#252931"
+    
+    "TitleBarHover": "#2D3139",
+    "TitleBarPressed": "#23272D"
   }
 }

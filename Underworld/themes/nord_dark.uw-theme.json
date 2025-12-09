@@ -1,0 +1,33 @@
+{
+  "id": "nord_dark",
+  "name": "Nord Dark",
+  "description": "Nord theme with cool blue-greys for dark mode.",
+  "sortOrder": 13,
+  "aliases": ["Nord", "Nord Dark"],
+  "colors": {
+    "WindowBackground": "#2E3440",
+    "CardBackground": "#3B4252",
+    "ControlBackground": "#434C5E",
+    "CardBorder": "#4C566A",
+    "ControlBorder": "#4C566A",
+
+    "PrimaryText": "#D8DEE9",
+    "SecondaryText": "#E5E9F0",
+    "TertiaryText": "#ECEFF4",
+    "MutedText": "#A0A7B8",
+
+    "AccentOrange": "#88C0D0",
+    "PrimaryButton": "#81A1C1",
+    "PrimaryButtonForeground": "#2E3440",
+    "DangerRed": "#BF616A",
+
+    "ScrollBarTrack": "#2E3440",
+    "ScrollBarThumb": "#4C566A",
+
+    "SelectionBackground": "#434C5E",
+    "SelectionForeground": "#ECEFF4",
+
+    "TitleBarHover": "#3B4252",
+    "TitleBarPressed": "#29303C"
+  }
+}

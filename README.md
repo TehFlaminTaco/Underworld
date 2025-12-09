@@ -2,7 +2,7 @@
 
 A cross-platform DooM launcher for managing source ports, IWADs, mods, and game profiles with dedicated save directories.
 
-![Version](https://img.shields.io/badge/version-1.3.2-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 
 ---
@@ -65,6 +65,10 @@ See the [Developer Guide](#for-developers) section below.
 - ✅ **Profile System** - Multiple configurations with isolated save directories
 - ✅ **WAD Metadata** - Displays map counts and mod information
 - ✅ **Search Filters** - Quickly find mods in large collection
+
+### Theme Support
+
+Underworld ships with a collection of curated UI themes defined as `.uw-theme.json` files under `Underworld/themes`. Use `View → Manage Theme…` to preview every theme, open the themes folder, or refresh the list if you drop in new files. Selecting a theme instantly applies it (no extra confirmation needed), and your preference is remembered between sessions.
 
 ### System Requirements
 

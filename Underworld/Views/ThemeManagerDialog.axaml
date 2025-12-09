@@ -10,6 +10,24 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource CardBackgroundBrush}">
 
+    <Window.Styles>
+        <Style Selector="ListBox#ThemeList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ListBox#ThemeList ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox#ThemeList ListBoxItem:selected Border#ThemeItemCard">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentOrangeBrush}"/>
+        </Style>
+        <Style Selector="ListBox#ThemeList ListBoxItem:pointerover Border#ThemeItemCard">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentOrangeBrush}"/>
+        </Style>
+    </Window.Styles>
+
     <Grid RowDefinitions="Auto,*,Auto" Margin="12">
         <TextBlock Grid.Row="0"
                    Text="Select a theme to apply"
@@ -32,11 +50,11 @@
                             Background="{DynamicResource CardBackgroundBrush}"
                             BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="8"
-                            Margin="0,4">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            CornerRadius="10"
+                            Padding="10"
+                            Margin="0,2">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                 <Border Background="{DynamicResource AccentOrangeBrush}"
                                         Padding="6,0"
@@ -49,18 +67,25 @@
                             <TextBlock Text="{Binding Description}"
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        FontSize="12"
-                                       Margin="0,4,0,0"/>
+                                       Margin="0,2,0,0"/>
                         </StackPanel>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
-            <Button Content="Apply Theme"
-                    Command="{Binding ApplyThemeCommand}"/>
-            <Button Content="Close"
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                <Button Content="Open Themes Folder"
+                        Command="{Binding OpenThemesFolderCommand}"/>
+                <Button Content="Refresh"
+                        Command="{Binding RefreshThemesCommand}"/>
+            </StackPanel>
+
+            <Button Grid.Column="1"
+                    Content="Close"
+                    HorizontalAlignment="Right"
                     Click="OnCloseClicked"/>
-        </StackPanel>
+        </Grid>
     </Grid>
 </Window>

@@ -1,0 +1,33 @@
+{
+  "id": "gruvbox_light",
+  "name": "Gruvbox Light",
+  "description": "Warm, desaturated Gruvbox Light palette.",
+  "sortOrder": 16,
+  "aliases": ["Gruvbox Light"],
+  "colors": {
+    "WindowBackground": "#FBF1C7",
+    "CardBackground": "#F2E5BC",
+    "ControlBackground": "#EBDBB2",
+    "CardBorder": "#D5C4A1",
+    "ControlBorder": "#BDAE93",
+
+    "PrimaryText": "#3C3836",
+    "SecondaryText": "#504945",
+    "TertiaryText": "#665C54",
+    "MutedText": "#928374",
+
+    "AccentOrange": "#FE8019",
+    "PrimaryButton": "#FABD2F",
+    "PrimaryButtonForeground": "#3C3836",
+    "DangerRed": "#9D0006",
+
+    "ScrollBarTrack": "#FBF1C7",
+    "ScrollBarThumb": "#D5C4A1",
+
+    "SelectionBackground": "#EBDBB2",
+    "SelectionForeground": "#3C3836",
+
+    "TitleBarHover": "#F2E5BC",
+    "TitleBarPressed": "#EBDBB2"
+  }
+}
