@@ -290,7 +290,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if(!string.IsNullOrWhiteSpace(value.PreferredExecutable)){
                     var executable = Executables.FirstOrDefault(c=>c.Path == value.PreferredExecutable);
                     if(executable is null){
-                        Console.Error.WriteLine($"Failed to find executable for profile ${value.PreferredExecutable}");
+                        Console.Error.WriteLine($"Failed to find executable for profile {value.PreferredExecutable}");
                     }else{
                         SelectedExecutable = executable;
                     }
@@ -299,7 +299,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if(!string.IsNullOrWhiteSpace(value.PreferredIWAD)){
                     var iwad = IWADs.FirstOrDefault(c=>c.Path == value.PreferredIWAD);
                     if(iwad is null){
-                        Console.Error.WriteLine($"Failed to find executable for profile ${value.PreferredIWAD}");
+                        Console.Error.WriteLine($"Failed to find IWAD for profile {value.PreferredIWAD}");
                     }else{
                         SelectedIWAD = iwad;
                     }
@@ -369,6 +369,67 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Attempts to reimport all invalid profiles using the export/import pipeline.
+    /// </summary>
+    public ProfileReimportReport ReimportInvalidProfiles()
+    {
+        var report = new ProfileReimportReport();
+        var snapshot = Profiles.ToList();
+
+        foreach (var profile in snapshot)
+        {
+            if (IsProfileValid(profile))
+            {
+                report.AlreadyValid++;
+                continue;
+            }
+
+            Console.WriteLine($"[ProfileReimport] Profile '{profile.Name}' is invalid. Attempting reimport...");
+
+            var exportModel = ExportProfile.From(profile);
+            var (convertedProfile, failReason) = exportModel.To();
+            if (convertedProfile == null)
+            {
+                var reason = failReason ?? "Unable to resolve profile components.";
+                Console.WriteLine($"[ProfileReimport] Failed to reimport '{profile.Name}': {reason}");
+                report.StillInvalid.Add($"{profile.Name}: {reason}");
+                continue;
+            }
+
+            convertedProfile.Name = profile.Name;
+            convertedProfile.Locked = profile.Locked;
+            convertedProfile.CommandLineArguments = profile.CommandLineArguments;
+
+            ApplyProfileConversion(profile, convertedProfile);
+
+            if (IsProfileValid(profile))
+            {
+                report.SuccessfulReimports++;
+                report.ReimportedProfiles.Add(profile.Name);
+                Console.WriteLine($"[ProfileReimport] Successfully reimported '{profile.Name}'.");
+
+                if (ReferenceEquals(profile, SelectedProfile))
+                {
+                    SelectedProfile = profile;
+                }
+            }
+            else
+            {
+                var reason = "Validation failed after reimport.";
+                Console.WriteLine($"[ProfileReimport] Profile '{profile.Name}' remains invalid after reimport.");
+                report.StillInvalid.Add($"{profile.Name}: {reason}");
+            }
+        }
+
+        if (report.SuccessfulReimports > 0)
+        {
+            TrySaveProfiles();
+        }
+
+        return report;
+    }
+
+    /// <summary>
     /// Validates and adds executable file paths to the manager and observable collection.
     /// </summary>
     /// <param name="paths">The file paths to validate and add.</param>
@@ -385,6 +446,33 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return invalids;
+    }
+
+    private static bool IsProfileValid(Profile profile)
+    {
+        var iwadValid = string.IsNullOrWhiteSpace(profile.PreferredIWAD) || File.Exists(profile.PreferredIWAD);
+        var wadsValid = profile.SelectedWads.All(w => string.IsNullOrWhiteSpace(w) || File.Exists(w));
+        return iwadValid && wadsValid;
+    }
+
+    private static void ApplyProfileConversion(Profile target, Profile source)
+    {
+        target.PreferredExecutable = source.PreferredExecutable;
+        target.PreferredIWAD = source.PreferredIWAD;
+
+        target.SelectedWads.Clear();
+        foreach (var wad in source.SelectedWads)
+        {
+            target.SelectedWads.Add(wad);
+        }
+    }
+
+    public sealed class ProfileReimportReport
+    {
+        public int SuccessfulReimports { get; set; }
+        public int AlreadyValid { get; set; }
+        public List<string> ReimportedProfiles { get; } = new();
+        public List<string> StillInvalid { get; } = new();
     }
 
     private async Task AddExecutablesFromWindowAsync(object? parameter)

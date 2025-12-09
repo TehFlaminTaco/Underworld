@@ -16,6 +16,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Underworld.Models;
 using Underworld.ViewModels;
+using System.Text;
 
 
 namespace Underworld.Views;
@@ -249,6 +250,39 @@ public partial class MainWindow : Window
     {
         Console.WriteLine("=== OnAboutClicked CALLED - Menu events ARE working ===");
         ShowPopup("About", "Underworld\n\nUnderworld is a DooM launcher created by TehFlaminTaco. AI was utilized in the creation of this program and art assets.\n\nLicensed CC BY-SA 4.0");
+    }
+
+    private async void OnReimportProfilesClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_vm == null)
+        {
+            return;
+        }
+
+        var report = _vm.ReimportInvalidProfiles();
+        var sb = new StringBuilder();
+
+        if (report.SuccessfulReimports == 0 && report.StillInvalid.Count == 0)
+        {
+            sb.AppendLine("All profiles are already valid. No reimports were required.");
+        }
+        else
+        {
+            sb.AppendLine($"Successful reimports: {report.SuccessfulReimports}");
+            sb.AppendLine($"Already valid: {report.AlreadyValid}");
+        }
+
+        if (report.StillInvalid.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Still invalid after reimport:");
+            foreach (var entry in report.StillInvalid)
+            {
+                sb.AppendLine($"• {entry}");
+            }
+        }
+
+        await ShowPopup("Reimport Profiles", sb.ToString());
     }
 
     private async void OnManageThemeClicked(object? sender, RoutedEventArgs e)

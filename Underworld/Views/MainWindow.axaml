@@ -79,6 +79,7 @@
                     <MenuItem Header="_File">
                         <MenuItem Header="_Export Profile" Command="{Binding ExportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
                         <MenuItem Header="_Import Profile" Command="{Binding ImportProfileCommand}" CommandParameter="{Binding $parent[Window]}" />
+                        <MenuItem Header="_Reimport Profiles" Click="OnReimportProfilesClicked" />
                         <Separator />
                         <MenuItem Header="_Manage Data Folders..." Click="OnManageDataFoldersClicked" />
                         <MenuItem Header="Clear WAD Cache" Click="OnClearCacheClicked" />

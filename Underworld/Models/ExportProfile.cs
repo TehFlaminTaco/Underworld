@@ -43,7 +43,7 @@ public class ExportProfile
         return new ExportProfile
         {
             Name = profile.Name,
-            PreferredExecutable = ExtractFilename(profile.PreferredExecutable),
+            PreferredExecutable = ExtractFilenameWithoutExtension(profile.PreferredExecutable),
             PreferredIWAD = ExtractFilename(profile.PreferredIWAD),
             SelectedWADs = profile.SelectedWads
                 .Select(ExtractFilename)
@@ -110,7 +110,7 @@ public class ExportProfile
         var executablesConfig = Config.Setup("executables", new List<ExecutableItem>());
         var executables = executablesConfig.Get();
         var executable = executables.FirstOrDefault(e => 
-            Path.GetFileName(e.Path) == PreferredExecutable);
+            Path.GetFileNameWithoutExtension(e.Path) == PreferredExecutable);
 
         if (executable == null)
         {
@@ -174,6 +174,14 @@ public class ExportProfile
     private static string ExtractFilename(string? path)
     {
         return string.IsNullOrEmpty(path) ? string.Empty : Path.GetFileName(path);
+    }
+
+    /// <summary>
+    /// Extracts the filename without extension from a full path, or returns empty string if null.
+    /// </summary>
+    private static string ExtractFilenameWithoutExtension(string? path)
+    {
+        return string.IsNullOrEmpty(path) ? string.Empty : Path.GetFileNameWithoutExtension(path);
     }
 
     public override string ToString() => Name;
