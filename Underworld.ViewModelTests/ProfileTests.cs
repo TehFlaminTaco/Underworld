@@ -76,7 +76,7 @@ namespace Underworld.ViewModelTests
             var exported = ExportProfile.From(profile);
 
             Assert.Equal("TestProfile", exported.Name);
-            Assert.Equal("gzdoom.exe", exported.PreferredExecutable);
+            Assert.Equal("gzdoom", exported.PreferredExecutable);
             Assert.Equal("doom2.wad", exported.PreferredIWAD);
             Assert.Equal(2, exported.SelectedWADs.Count);
             Assert.Contains("mod1.pk3", exported.SelectedWADs);
@@ -89,7 +89,7 @@ namespace Underworld.ViewModelTests
             var exportProfile = new ExportProfile
             {
                 Name = "SerializeTest",
-                PreferredExecutable = "gzdoom.exe",
+                PreferredExecutable = "gzdoom",
                 PreferredIWAD = "doom2.wad",
                 SelectedWADs = new List<string> { "mod1.pk3", "mod2.wad" }
             };
