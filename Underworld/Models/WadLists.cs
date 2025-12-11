@@ -21,6 +21,24 @@ public static class WadLists
     public static readonly string[]                                                              ValidWADFiles = { ".wad", ".pk3", ".zip", ".pk7" };
 
     /// <summary>
+    /// Determines whether a filesystem path could refer to a trackable WAD asset.
+    /// </summary>
+    public static bool IsPotentialWadPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var extension = Path.GetExtension(path);
+        if (string.IsNullOrEmpty(extension))
+        {
+            // Folder-based mods have no extension; treat them as potential candidates.
+            return true;
+        }
+
+        return ValidWADFiles.Contains(extension.ToLowerInvariant());
+    }
+
+    /// <summary>
     /// Persistent cache of WAD file information.
     /// </summary>
     public static ConfigEntry<Dictionary<string, WadInfo>> WadInfoCache =
@@ -314,6 +332,39 @@ public static class WadLists
         WadInfoCache.Set(cache);
 
         return info;
+    }
+
+    /// <summary>
+    /// Forces the cache entry for a specific path to be refreshed if the file currently exists.
+    /// Returns null when the path is no longer available or cannot be analyzed.
+    /// </summary>
+    public static WadInfo? RefreshWadInfo(string path)
+    {
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            RemoveWadInfo(path);
+            return null;
+        }
+
+        var info = AnalyzeWadFile(path);
+        var cache = WadInfoCache.Get();
+        cache[path] = info;
+        WadInfoCache.Set(cache);
+        return info;
+    }
+
+    /// <summary>
+    /// Removes a cached WAD entry when the file has been deleted.
+    /// </summary>
+    public static bool RemoveWadInfo(string path)
+    {
+        var cache = WadInfoCache.Get();
+        var removed = cache.Remove(path);
+        if (removed)
+        {
+            WadInfoCache.Set(cache);
+        }
+        return removed;
     }
 
     /// <summary>

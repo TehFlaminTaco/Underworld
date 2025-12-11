@@ -47,11 +47,6 @@ public partial class DataDirectoriesDialog: Window
             closeBtn.Click += (_, _) => this.Close();
         }
 
-        this.Closed += (_, _) => {
-            // Update WadLists and the main window's IWADs collection
-            WadLists.GetNewWadInfos();
-            // Todo: Update the IWADs collection in MainWindowViewModel
-        };
     }
 
     private async Task OnAddClicked()

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows.Input;
 using Underworld.Models;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Underworld.Views;
 using System.IO;
 using Avalonia;
 using Avalonia.Layout;
+using Avalonia.Threading;
 
 namespace Underworld.ViewModels;
 
@@ -19,7 +21,7 @@ namespace Underworld.ViewModels;
 /// Main view model for the Underworld launcher application.
 /// Manages executables, IWADs, PWADs, profiles, and game launching.
 /// </summary>
-public partial class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly ExecutableManager _manager = new ExecutableManager();
     private readonly ConfigEntry<List<ExecutableItem>> _executablesConfig;
@@ -35,13 +37,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _lastSelectedExecutablePathConfig = Config.Setup("lastSelectedExecutablePath", string.Empty);
         _lastSelectedIWADPathConfig = Config.Setup("lastSelectedIWADPath", string.Empty);
 
-        // load persisted executables (if any)
         var saved = _executablesConfig.Get();
         foreach (var e in saved)
         {
             _manager.Executables.Add(e);
             Executables.Add(e);
-            // Listen for property changes on this item
             e.PropertyChanged += (_, _) => SaveExecutablesConfig();
         }
 
@@ -49,85 +49,53 @@ public partial class MainWindowViewModel : ViewModelBase
         AddExecutablesCommand = new RelayCommand(p => { _ = AddExecutablesFromWindowAsync(p); });
         ExportProfileCommand = new RelayCommand(p => { _ = ExportProfileAsync(p); }, _ => SelectedProfile != null);
         ImportProfileCommand = new RelayCommand(p => { _ = ImportProfileAsync(p); });
-        SetDarkThemeCommand = new RelayCommand(_ => 
+        SetDarkThemeCommand = new RelayCommand(_ =>
         {
             Console.WriteLine("SetDarkThemeCommand executed!");
             ThemeManager.SetTheme("dark");
             Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme.Id}");
         });
-        SetLightThemeCommand = new RelayCommand(_ => 
+        SetLightThemeCommand = new RelayCommand(_ =>
         {
             Console.WriteLine("SetLightThemeCommand executed!");
             ThemeManager.SetTheme("light");
             Console.WriteLine($"Current theme: {ThemeManager.CurrentTheme.Id}");
         });
 
-        AllWads.Clear();
+        ReloadWadsFromDisk(preserveSelections: false);
 
-        // Load WAD list once at startup
-        var wads = WadLists.GetAllWads();
-        foreach (var wad in wads)
-        {
-            var wadInfo = WadLists.GetWadInfo(wad);
-            if(!wadInfo.IsPatch){
-                IWADs.Add(new(){
-                    Path = wad,
-                    DisplayName = wadInfo.Name
-                });
-            }else{
-                var info = wadInfo.Info;
-                AllWads.Add(info);
-                FilteredAvailableWads.Add(info);
-                // Listen for IsSelected changes to move between collections
-                info.PropertyChanged += (_, args) =>
-                {
-                    if (args.PropertyName == nameof(SelectWadInfo.IsSelected))
-                    {
-                        OnWadSelectionChanged(info);
-                    }
-                };
-            }
-        }
-
-        // Persist on collection changes (add/remove)
         Executables.CollectionChanged += (_, args) =>
         {
             if (args.NewItems != null)
             {
-                // Listen for property changes on newly added items
                 foreach (ExecutableItem item in args.NewItems)
                 {
                     item.PropertyChanged += (_, _) => SaveExecutablesConfig();
                 }
             }
+
             SaveExecutablesConfig();
         };
 
-        // load persisted profiles (if any)
         var savedProfiles = _profilesConfig.Get();
         foreach (var p in savedProfiles)
         {
             Profiles.Add(p);
-            p.PropertyChanged += (_, _) => 
-            {
-                TrySaveProfiles();
-            };
+            p.PropertyChanged += (_, _) => { TrySaveProfiles(); };
         }
 
-        // Persist profiles on collection changes
         Profiles.CollectionChanged += (_, args) =>
         {
             try
-            {   
-                if(args.NewItems != null){
+            {
+                if (args.NewItems != null)
+                {
                     foreach (Profile p in args.NewItems)
                     {
-                        p.PropertyChanged += (_, _) => 
-                        {
-                            TrySaveProfiles();
-                        };
+                        p.PropertyChanged += (_, _) => { TrySaveProfiles(); };
                     }
                 }
+
                 _profilesConfig.Set(Profiles.ToList());
             }
             catch
@@ -135,13 +103,16 @@ public partial class MainWindowViewModel : ViewModelBase
                 // ignore save errors
             }
         };
-        
-        // Ensure we have selected the appropriate last-used items
+
+        WadDirectoryWatcher.WadFilesChanged += OnWadFilesChanged;
+        WadDirectoryWatcher.EnsureWatching();
+
         if (_lastSelectedExecutablePathConfig.HasSet())
         {
             var lastPath = _lastSelectedExecutablePathConfig.Get();
             SelectedExecutable = Executables.FirstOrDefault(e => e.Path == lastPath);
         }
+
         if (_lastSelectedIWADPathConfig.HasSet())
         {
             var lastPath = _lastSelectedIWADPathConfig.Get();
@@ -149,50 +120,42 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Gets the collection of available game executables.
-    /// </summary>
     public ObservableCollection<ExecutableItem> Executables { get; } = new ObservableCollection<ExecutableItem>();
 
-    /// <summary>
-    /// Gets the collection of available IWADs (main game data files).
-    /// </summary>
     public ObservableCollection<IWad> IWADs { get; } = new ObservableCollection<IWad>();
 
-    /// <summary>
-    /// Gets the collection of saved game profiles.
-    /// </summary>
     public ObservableCollection<Profile> Profiles { get; } = new ObservableCollection<Profile>();
 
-    /// <summary>
-    /// Gets the master list of all discovered WAD files.
-    /// </summary>
     public static List<SelectWadInfo> AllWads { get; } = new List<SelectWadInfo>();
 
-    /// <summary>
-    /// Gets the filtered collection of available (unselected) WADs.
-    /// </summary>
     public ObservableCollection<SelectWadInfo> FilteredAvailableWads { get; } = new ObservableCollection<SelectWadInfo>();
 
-    /// <summary>
-    /// Gets the collection of items selected in the available WADs list.
-    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedItemsAvailableWads { get; } = new ObservableCollection<SelectWadInfo>();
 
-    /// <summary>
-    /// Gets the collection of selected WADs.
-    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
 
-    /// <summary>
-    /// Gets the filtered collection of selected WADs.
-    /// </summary>
     public ObservableCollection<SelectWadInfo> FilteredSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
 
-    /// <summary>
-    /// Gets the collection of items selected in the selected WADs list.
-    /// </summary>
     public ObservableCollection<SelectWadInfo> SelectedItemsSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
+
+    private void OnWadFilesChanged(object? sender, WadDirectoryChangedEventArgs e)
+    {
+        var paths = e?.ChangedPaths ?? Array.Empty<string>();
+
+        void Apply()
+        {
+            ApplyWadDirectoryChanges(paths);
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(Apply);
+        }
+    }
 
 
     private static ExecutableItem? SELECTED_EXECUTABLE;
@@ -821,6 +784,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Console.WriteLine("UpdateAvailableWadsFilter: filterText is null, trying to get from TextBox");
             filterText = GetFilterTextFromControl("WADFilterTextBox1");
         }
+
         FilteredAvailableWads.Clear();
         var availableWads = AllWads.Where(w => !w.IsSelected);
         var filtered = string.IsNullOrWhiteSpace(filterText)
@@ -845,6 +809,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             filterText = GetFilterTextFromControl("WADFilterTextBox2");
         }
+
         FilteredSelectedWads.Clear();
         var selectedWads = AllWads.Where(w => w.IsSelected);
         var filtered = string.IsNullOrWhiteSpace(filterText)
@@ -856,6 +821,248 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             FilteredSelectedWads.Add(wad);
         }
+    }
+
+    public virtual void ReloadWadsFromDisk(bool preserveSelections = true)
+    {
+        var previousSelectedIwadPath = SelectedIWAD?.Path;
+        IWad? restoredIwad = null;
+
+        HashSet<string>? preserved = null;
+        if (preserveSelections)
+        {
+            preserved = AllWads.Where(w => w.IsSelected)
+                .Select(w => w.Path)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        foreach (var wad in AllWads)
+        {
+            DetachWadSelectionHandler(wad);
+        }
+
+        AllWads.Clear();
+        IWADs.Clear();
+
+        var wads = WadLists.GetAllWads();
+        foreach (var wadPath in wads)
+        {
+            var info = WadLists.GetWadInfo(wadPath);
+            if (info.IsPatch)
+            {
+                var selectInfo = info.Info;
+                selectInfo.IsSelected = ShouldAutoSelectWad(selectInfo.Path, preserved);
+                AttachWadSelectionHandler(selectInfo);
+                AllWads.Add(selectInfo);
+            }
+            else
+            {
+                var newIwad = new IWad
+                {
+                    Path = info.Path,
+                    DisplayName = info.Name
+                };
+
+                IWADs.Add(newIwad);
+                if (previousSelectedIwadPath != null && PathsEqual(newIwad.Path, previousSelectedIwadPath))
+                {
+                    restoredIwad = newIwad;
+                }
+            }
+        }
+
+        UpdateAvailableWadsFilter();
+        UpdateSelectedWadsFilter();
+
+        if (restoredIwad != null)
+        {
+            SelectedIWAD = restoredIwad;
+        }
+        else if (previousSelectedIwadPath != null && IWADs.All(i => !PathsEqual(i.Path, previousSelectedIwadPath)))
+        {
+            SelectedIWAD = null;
+        }
+    }
+
+    internal void ApplyWadDirectoryChanges(IReadOnlyCollection<string> changedPaths)
+    {
+        if (changedPaths.Count == 0)
+        {
+            ReloadWadsFromDisk(preserveSelections: true);
+            return;
+        }
+
+        var distinctPaths = changedPaths
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var path in distinctPaths)
+        {
+            var exists = File.Exists(path) || Directory.Exists(path);
+            if (exists)
+            {
+                if (!WadLists.IsPotentialWadPath(path))
+                {
+                    continue;
+                }
+
+                var info = WadLists.RefreshWadInfo(path);
+                if (info == null)
+                {
+                    continue;
+                }
+
+                _ = info.IsPatch
+                    ? UpsertPatchWad(info)
+                    : UpsertIWad(info);
+            }
+            else
+            {
+                WadLists.RemoveWadInfo(path);
+                _ = RemoveWadByPath(path);
+            }
+        }
+
+        UpdateAvailableWadsFilter();
+        UpdateSelectedWadsFilter();
+    }
+
+    private bool UpsertPatchWad(WadInfo info)
+    {
+        var existing = FindPatchWad(info.Path);
+        if (existing != null)
+        {
+            var updated = false;
+            if (!string.Equals(existing.DisplayName, info.Name, StringComparison.Ordinal))
+            {
+                existing.DisplayName = info.Name;
+                updated = true;
+            }
+            if (existing.HasMaps != info.HasMaps)
+            {
+                existing.HasMaps = info.HasMaps;
+                updated = true;
+            }
+            return updated;
+        }
+
+        var selectInfo = info.Info;
+        selectInfo.IsSelected = ShouldAutoSelectWad(selectInfo.Path);
+        AttachWadSelectionHandler(selectInfo);
+        AllWads.Add(selectInfo);
+        return true;
+    }
+
+    private bool UpsertIWad(WadInfo info)
+    {
+        var existing = IWADs.FirstOrDefault(i => PathsEqual(i.Path, info.Path));
+        if (existing != null)
+        {
+            if (!string.Equals(existing.DisplayName, info.Name, StringComparison.Ordinal))
+            {
+                existing.DisplayName = info.Name;
+                return true;
+            }
+            return false;
+        }
+
+        IWADs.Add(new IWad
+        {
+            Path = info.Path,
+            DisplayName = info.Name
+        });
+        return true;
+    }
+
+    private bool RemoveWadByPath(string path)
+    {
+        var removedPatch = RemovePatchWad(path);
+        var removedIwad = RemoveIwad(path);
+        return removedPatch || removedIwad;
+    }
+
+    private bool RemovePatchWad(string path)
+    {
+        var wad = FindPatchWad(path);
+        if (wad == null)
+        {
+            return false;
+        }
+
+        DetachWadSelectionHandler(wad);
+        AllWads.Remove(wad);
+        return true;
+    }
+
+    private bool RemoveIwad(string path)
+    {
+        var iwad = IWADs.FirstOrDefault(i => PathsEqual(i.Path, path));
+        if (iwad == null)
+        {
+            return false;
+        }
+
+        IWADs.Remove(iwad);
+        if (SelectedIWAD != null && PathsEqual(SelectedIWAD.Path, path))
+        {
+            SelectedIWAD = null;
+        }
+        return true;
+    }
+
+    private static SelectWadInfo? FindPatchWad(string path)
+    {
+        return AllWads.FirstOrDefault(w => PathsEqual(w.Path, path));
+    }
+
+    private static bool PathsEqual(string? left, string? right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldAutoSelectWad(string path, HashSet<string>? preserved = null)
+    {
+        if (preserved != null && preserved.Contains(path))
+        {
+            return true;
+        }
+
+        return SELECTED_PROFILE?.SelectedWads.Contains(path) ?? false;
+    }
+
+    private void AttachWadSelectionHandler(SelectWadInfo wad)
+    {
+        wad.PropertyChanged += SelectWadInfo_PropertyChanged;
+    }
+
+    private void DetachWadSelectionHandler(SelectWadInfo wad)
+    {
+        wad.PropertyChanged -= SelectWadInfo_PropertyChanged;
+    }
+
+    private void SelectWadInfo_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is SelectWadInfo wad && e.PropertyName == nameof(SelectWadInfo.IsSelected))
+        {
+            OnWadSelectionChanged(wad);
+        }
+    }
+
+    private string? GetFilterTextFromControl(string controlName)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow != null)
+        {
+            Console.WriteLine("Main window found");
+            var filterBox = mainWindow.FindControl<TextBox>(controlName);
+            if (filterBox != null)
+            {
+                Console.WriteLine("Filter TextBox found");
+                return filterBox.Text;
+            }
+        }
+        return null;
     }
 
     /// <summary>
@@ -954,27 +1161,6 @@ public partial class MainWindowViewModel : ViewModelBase
         return Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow
             : null;
-    }
-
-    /// <summary>
-    /// Retrieves filter text from a named TextBox control in the main window.
-    /// </summary>
-    /// <param name="controlName">The name of the TextBox control.</param>
-    /// <returns>The text from the control, or null if not found.</returns>
-    private string? GetFilterTextFromControl(string controlName)
-    {
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
-        {
-            Console.WriteLine("Main window found");
-            var filterBox = mainWindow.FindControl<TextBox>(controlName);
-            if (filterBox != null)
-            {
-                Console.WriteLine("Filter TextBox found");
-                return filterBox.Text;
-            }
-        }
-        return null;
     }
 
     /// <summary>
@@ -1140,6 +1326,15 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             ShowFailDialogue($"An error occurred while trying to run the game: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        WadDirectoryWatcher.WadFilesChanged -= OnWadFilesChanged;
+        foreach (var wad in AllWads)
+        {
+            DetachWadSelectionHandler(wad);
         }
     }
 }

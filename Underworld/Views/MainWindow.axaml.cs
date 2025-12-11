@@ -35,6 +35,7 @@ public partial class MainWindow : Window
 
         // Setup selection tracking on window load
         this.Loaded += MainWindow_Loaded;
+        this.Closed += (_, _) => _vm?.Dispose();
     }
 
     private void MainWindow_Loaded(object? sender, RoutedEventArgs e)
@@ -509,24 +510,8 @@ public partial class MainWindow : Window
         var dialog = new DataDirectoriesDialog(this);
         dialog.Closed += (_, _) =>
         {
-            // After the dialog closes, refresh IWADs in the ViewModel
-            WadLists.GetNewWadInfos();
-            if (this.DataContext is ViewModels.MainWindowViewModel vm)
-            {
-                vm.IWADs.Clear();
-                var wads = WadLists.GetAllWads();
-                foreach (var wad in wads)
-                {
-                    var wadInfo = WadLists.GetWadInfo(wad);
-                    if(wadInfo.IsPatch) continue;
-                    vm.IWADs.Add(new(){
-                        Path = wadInfo.Path,
-                        DisplayName = wadInfo.Name
-                    });
-                }
-            }
-            // Clear the cache manually.
-            OnClearCacheClicked(sender, e);
+            WadDirectoryWatcher.RefreshWatchers();
+            WadDirectoryWatcher.RequestFullRescan();
         };
         await dialog.ShowDialog(this);
     }
@@ -539,27 +524,7 @@ public partial class MainWindow : Window
         // Refresh the ViewModel's WAD lists if present
         if (this.DataContext is ViewModels.MainWindowViewModel vm)
         {
-            MainWindowViewModel.AllWads.Clear();
-            vm.FilteredAvailableWads.Clear();
-            vm.FilteredSelectedWads.Clear();
-
-            var wads = WadLists.GetAllWads();
-            foreach (var wad in wads)
-            {
-                var wadInfo = WadLists.GetWadInfo(wad);
-                if(!wadInfo.IsPatch) continue;
-                var info = wadInfo.Info;
-                MainWindowViewModel.AllWads.Add(info);
-                vm.FilteredAvailableWads.Add(info);
-                // Listen for IsSelected changes to move between collections
-                info.PropertyChanged += (_, args) =>
-                {
-                    if (args.PropertyName == nameof(SelectWadInfo.IsSelected))
-                    {
-                        vm.OnWadSelectionChanged(info);
-                    }
-                };
-            }
+            vm.ReloadWadsFromDisk();
         }
     }
 
