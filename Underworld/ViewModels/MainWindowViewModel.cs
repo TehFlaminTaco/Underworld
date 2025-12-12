@@ -138,6 +138,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<SelectWadInfo> SelectedItemsSelectedWads { get; } = new ObservableCollection<SelectWadInfo>();
 
+    private bool _suppressSelectionChanged;
+    private readonly List<string> _manualSelectedWadOrder = new();
+
     private void OnWadFilesChanged(object? sender, WadDirectoryChangedEventArgs e)
     {
         var paths = e?.ChangedPaths ?? Array.Empty<string>();
@@ -276,6 +279,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             SELECTED_PROFILE = value;
             SetProperty(ref _selectedProfile, value);
             OnPropertyChanged(nameof(CurrentProfileLocked));
+            UpdateAvailableWadsFilter();
+            UpdateSelectedWadsFilter();
+            MirrorProfileOrderIntoManualList();
         }
     }
 
@@ -509,7 +515,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task ExportProfileAsync(object? parameter)
+    public async Task ExportProfileAsync(object? parameter)
     {
         if (parameter is not Window win)
             return;
@@ -736,6 +742,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         UpdateSelectedWadsFilter();
     }
 
+    public void MoveSelectedWad(SelectWadInfo wad, int insertionIndex)
+    {
+        if (wad == null)
+            return;
+
+        if (SelectedProfile?.Locked == true)
+            return;
+
+        var filtered = FilteredSelectedWads;
+        var currentIndex = filtered.IndexOf(wad);
+        if (currentIndex < 0)
+            return;
+
+        var boundedIndex = Math.Clamp(insertionIndex, 0, filtered.Count);
+        var insertingAtEnd = boundedIndex == filtered.Count;
+        var adjustedIndex = boundedIndex;
+        if (boundedIndex > currentIndex)
+            adjustedIndex--;
+
+        if (adjustedIndex == currentIndex)
+            return;
+
+        var order = GetActiveLoadOrderList();
+        var movingPath = wad.Path;
+        string? beforePath = insertingAtEnd ? null : filtered[boundedIndex].Path;
+
+        RemovePathIfPresent(order, movingPath);
+
+        var newIndex = beforePath != null ? FindPathIndex(order, beforePath) : order.Count;
+        if (newIndex < 0)
+            newIndex = order.Count;
+
+        order.Insert(newIndex, movingPath);
+
+        if (SelectedProfile != null)
+        {
+            TrySaveProfiles();
+            MirrorProfileOrderIntoManualList();
+        }
+
+        UpdateSelectedWadsFilter();
+    }
+
     /// <summary>
     /// Handles changes to WAD selection status, moving WADs between available and selected collections
     /// and updating the selected profile if one is active.
@@ -743,6 +792,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <param name="wadInfo">The WAD whose selection status changed.</param>
     public void OnWadSelectionChanged(SelectWadInfo wadInfo)
     {
+        if (_suppressSelectionChanged)
+            return;
+
         Console.WriteLine($"Wad selection changed: {wadInfo.DisplayName}, IsSelected={wadInfo.IsSelected}");
         if (wadInfo.IsSelected)
         {
@@ -754,6 +806,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 if(!SelectedProfile.SelectedWads.Contains(wadInfo.Path))
                     SelectedProfile.SelectedWads.Add(wadInfo.Path);
                 TrySaveProfiles();
+                MirrorProfileOrderIntoManualList();
+            }
+            else
+            {
+                if (!ContainsPath(_manualSelectedWadOrder, wadInfo.Path))
+                {
+                    _manualSelectedWadOrder.Add(wadInfo.Path);
+                }
             }
         }
         else
@@ -768,10 +828,165 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     SelectedProfile.SelectedWads.Remove(wadInfo.Path);
                 }
                 TrySaveProfiles();
+                MirrorProfileOrderIntoManualList();
             }
+            else
+            {
+                RemovePathIfPresent(_manualSelectedWadOrder, wadInfo.Path);
+            }
+        }
+        ApplyLoadOrderToFilteredSelectedWads();
+    }
+
+    public void InsertWadIntoLoadOrder(SelectWadInfo wad, int insertionIndex)
+    {
+        if (wad == null)
+            return;
+
+        if (SelectedProfile?.Locked == true)
+            return;
+
+        var order = GetActiveLoadOrderList();
+
+        if (wad.IsSelected)
+        {
+            MoveSelectedWad(wad, insertionIndex);
+            return;
+        }
+
+        _suppressSelectionChanged = true;
+        try
+        {
+            wad.IsSelected = true;
+        }
+        finally
+        {
+            _suppressSelectionChanged = false;
+        }
+
+        var boundedIndex = Math.Clamp(insertionIndex, 0, order.Count);
+        if (!ContainsPath(order, wad.Path))
+        {
+            order.Insert(boundedIndex, wad.Path);
+            if (SelectedProfile != null)
+            {
+                TrySaveProfiles();
+                MirrorProfileOrderIntoManualList();
+            }
+        }
+
+        UpdateSelectedWadsFilter();
+        UpdateAvailableWadsFilter();
+    }
+
+    private IList<string> GetActiveLoadOrderList()
+    {
+        if (SelectedProfile != null)
+            return SelectedProfile.SelectedWads;
+
+        return _manualSelectedWadOrder;
+    }
+
+    private static int FindPathIndex(IList<string> order, string path)
+    {
+        for (int i = 0; i < order.Count; i++)
+        {
+            if (PathsEqual(order[i], path))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool ContainsPath(IList<string> order, string path)
+    {
+        return FindPathIndex(order, path) >= 0;
+    }
+
+    private static void RemovePathIfPresent(IList<string> order, string path)
+    {
+        var index = FindPathIndex(order, path);
+        if (index >= 0)
+        {
+            order.RemoveAt(index);
         }
     }
 
+    private void MirrorProfileOrderIntoManualList()
+    {
+        if (SelectedProfile == null)
+            return;
+
+        _manualSelectedWadOrder.Clear();
+        foreach (var path in SelectedProfile.SelectedWads)
+        {
+            _manualSelectedWadOrder.Add(path);
+        }
+    }
+
+    private List<SelectWadInfo> OrderSelectedWads(IEnumerable<SelectWadInfo> wads)
+    {
+        var result = wads.ToList();
+        var order = GetActiveLoadOrderList();
+        if (order.Count == 0)
+        {
+            result.Sort((left, right) => string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase));
+            return result;
+        }
+
+        var ordering = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < order.Count; i++)
+        {
+            var path = order[i];
+            if (!string.IsNullOrWhiteSpace(path) && !ordering.ContainsKey(path))
+            {
+                ordering[path] = i;
+            }
+        }
+
+        result.Sort((left, right) =>
+        {
+            var leftRank = ordering.TryGetValue(left.Path, out var l) ? l : int.MaxValue;
+            var rightRank = ordering.TryGetValue(right.Path, out var r) ? r : int.MaxValue;
+            if (leftRank != rightRank)
+            {
+                return leftRank.CompareTo(rightRank);
+            }
+
+            return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+        });
+
+        return result;
+    }
+
+    private void ApplyLoadOrderToFilteredSelectedWads()
+    {
+        var ordered = OrderSelectedWads(FilteredSelectedWads.ToList());
+        if (ordered.Count != FilteredSelectedWads.Count)
+        {
+            FilteredSelectedWads.Clear();
+            foreach (var wad in ordered)
+            {
+                FilteredSelectedWads.Add(wad);
+            }
+            return;
+        }
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            if (!ReferenceEquals(ordered[i], FilteredSelectedWads[i]))
+            {
+                FilteredSelectedWads.Clear();
+                foreach (var wad in ordered)
+                {
+                    FilteredSelectedWads.Add(wad);
+                }
+                break;
+            }
+        }
+    }
     /// <summary>
     /// Updates the filtered list of available (unselected) WADs based on the filter text.
     /// If filterText is not provided, attempts to retrieve it from the WADFilterTextBox1 control.
@@ -817,10 +1032,46 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             : selectedWads.Where(w => w.DisplayName.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0 ||
                                        w.Filename.IndexOf(filterText!, StringComparison.OrdinalIgnoreCase) >= 0);
 
-        foreach (var wad in filtered)
+        var ordered = OrderSelectedWads(filtered);
+        foreach (var wad in ordered)
         {
             FilteredSelectedWads.Add(wad);
         }
+    }
+
+    internal IReadOnlyList<SelectWadInfo> GetSelectedWadsInLoadOrder()
+    {
+        var selected = AllWads
+            .Where(w => w.IsSelected)
+            .ToDictionary(w => w.Path, w => w, StringComparer.OrdinalIgnoreCase);
+
+        var ordered = new List<SelectWadInfo>();
+        var loadOrder = GetActiveLoadOrderList();
+        if (loadOrder.Count > 0)
+        {
+            foreach (var path in loadOrder)
+            {
+                if (selected.TryGetValue(path, out var wad))
+                {
+                    ordered.Add(wad);
+                    selected.Remove(path);
+                }
+            }
+        }
+
+        if (selected.Count > 0)
+        {
+            foreach (var wad in AllWads)
+            {
+                if (selected.TryGetValue(wad.Path, out var info))
+                {
+                    ordered.Add(info);
+                    selected.Remove(wad.Path);
+                }
+            }
+        }
+
+        return ordered;
     }
 
     public virtual void ReloadWadsFromDisk(bool preserveSelections = true)
@@ -1201,7 +1452,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Ensures the ./saves directory exists, creating it if necessary.
     /// </summary>
     /// <returns>True if the directory exists or was created successfully, false otherwise.</returns>
-    private bool EnsureSavesDirectoryExists()
+    public bool EnsureSavesDirectoryExists()
     {
         if (Directory.Exists("./saves"))
             return true;
@@ -1216,6 +1467,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ShowFailDialogue("Failed to create new saves folder!");
             return false;
         }
+    }
+
+    public string GetSaveFolder(string profileName){
+        foreach (var c in Path.GetInvalidFileNameChars())
+            profileName = profileName.Replace(c, '-');
+        return $"./saves/{profileName}";
     }
 
     /// <summary>
@@ -1274,7 +1531,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         string args = $"-iwad \"{SELECTED_IWAD!.Path}\"";
 
-        var selected = AllWads.Where(w => w.IsSelected).ToList();
+        var selected = GetSelectedWadsInLoadOrder();
         if (selected.Count > 0)
         {
             args += $" -file {string.Join(" ", selected.Select(w => $"\"{w.Path}\""))}";

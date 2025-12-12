@@ -126,9 +126,10 @@
 
                 <Button Grid.Column="1"
                         Classes="Primary"
-                        Content="Run Game ▶"
+                        Content="Run Game"
                         Click="OnRunGameClicked"
                         VerticalAlignment="Center" />
+                
             </Grid>
         </Border>
 
@@ -186,6 +187,11 @@
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Open File Location" Click="OnContextOpenWadLocationClicked"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
                         </ListBox>
                     </Grid>
                 </Border>
@@ -198,6 +204,22 @@
                                  ItemsSource="{Binding Profiles}"
                                  SelectedItem="{Binding SelectedProfile}"
                                  SelectionMode="Single">
+                            <ListBox.Styles>
+                                <Style Selector="ListBox#ProfilesList > ListBoxItem">
+                                    <Setter Property="ContextMenu">
+                                        <Setter.Value>
+                                            <ContextMenu>
+                                                <MenuItem Header="Rename" Click="OnRenameProfileMenuClicked"/>
+                                                <MenuItem Header="Remove" Click="OnContextRemoveProfileClicked"/>
+                                                <MenuItem Header="Export" Click="OnExportProfileClicked"/>
+                                                <Separator/>
+                                                <MenuItem Header="Move to Top" Click="OnMoveProfileToTopClicked"/>
+                                                <MenuItem Header="Move to Bottom" Click="OnMoveProfileToBottomClicked"/>
+                                            </ContextMenu>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.Styles>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Classes="ListEntryPrimaryText" Text="{Binding Name}" Margin="4"/>
@@ -246,7 +268,20 @@
                                   CanUserReorderColumns="True"
                                   CanUserResizeColumns="True"
                                   CanUserSortColumns="True"
+                                  DragDrop.AllowDrop="True"
                                   DoubleTapped="OnAvailableWADsDoubleClicked">
+                            <dg:DataGrid.Styles>
+                                <Style Selector="dg|DataGridRow">
+                                    <Setter Property="ContextMenu">
+                                        <Setter.Value>
+                                            <ContextMenu>
+                                                <MenuItem Header="Add" Click="OnContextAddAvailableWadClicked"/>
+                                                <MenuItem Header="Open File Location" Click="OnContextOpenWadLocationClicked"/>
+                                            </ContextMenu>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </dg:DataGrid.Styles>
                             <dg:DataGrid.Columns>
                                 <dg:DataGridTextColumn IsReadOnly="True" Header="WAD" Binding="{Binding DisplayName}" Width="2*"/>
                                 <dg:DataGridTextColumn IsReadOnly="True" Header="Maps" Binding="{Binding HasMaps}" Width="Auto"/>
@@ -294,8 +329,29 @@
                                   BorderBrush="{DynamicResource ControlBorderBrush}"
                                   CanUserReorderColumns="True"
                                   CanUserResizeColumns="True"
-                                  CanUserSortColumns="True"
+                                  CanUserSortColumns="False"
+                                  DragDrop.AllowDrop="True"
                                   DoubleTapped="OnSelectedWADsDoubleClicked">
+                            <dg:DataGrid.Styles>
+                                <Style Selector="dg|DataGridRow">
+                                    <Setter Property="ContextMenu">
+                                        <Setter.Value>
+                                            <ContextMenu>
+                                                <MenuItem Header="Remove" Click="OnContextRemoveSelectedWadClicked"/>
+                                                <MenuItem Header="Open File Location" Click="OnContextOpenWadLocationClicked"/>
+                                            </ContextMenu>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="dg|DataGridRow.insertion-before">
+                                    <Setter Property="BorderThickness" Value="0,2,0,0"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentOrangeBrush}"/>
+                                </Style>
+                                <Style Selector="dg|DataGridRow.insertion-after">
+                                    <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentOrangeBrush}"/>
+                                </Style>
+                            </dg:DataGrid.Styles>
                             <dg:DataGrid.Columns>
                                 <dg:DataGridTextColumn IsReadOnly="True" Header="WAD" Binding="{Binding DisplayName}" Width="2*"/>
                                 <dg:DataGridTextColumn IsReadOnly="True" Header="Maps" Binding="{Binding HasMaps}" Width="Auto"/>

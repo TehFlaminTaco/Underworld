@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using System;
 using System.Collections.ObjectModel;
@@ -24,6 +26,16 @@ namespace Underworld.Views;
 public partial class MainWindow : Window
 {
     private ViewModels.MainWindowViewModel? _vm;
+    private const string WadDragFormat = "application/x-underworld-wad";
+    private SelectWadInfo? _draggedSelectedWad;
+    private DataGridRow? _currentInsertionRow;
+    private bool _insertBeforeCurrentRow;
+
+    private sealed class WadDragPayload
+    {
+        public SelectWadInfo Wad { get; init; } = null!;
+        public bool FromSelectedList { get; init; }
+    }
 
     public MainWindow()
     {
@@ -65,6 +77,10 @@ public partial class MainWindow : Window
                 // Post to the UI thread to ensure the DataGrid has finished updating its SelectedItems
                 Dispatcher.UIThread.Post(() => SyncAvailableWadsSelection(wadGrid1));
             };
+
+            wadGrid1.AddHandler(InputElement.PointerPressedEvent, OnAvailableWadsGridPointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+            wadGrid1.AddHandler(DragDrop.DragOverEvent, OnAvailableWadsDragOver, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+            wadGrid1.AddHandler(DragDrop.DropEvent, OnAvailableWadsDrop, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         }
         else
         {
@@ -91,6 +107,11 @@ public partial class MainWindow : Window
             {
                 Dispatcher.UIThread.Post(() => SyncSelectedWadsSelection(wadGrid2));
             };
+
+            wadGrid2.AddHandler(InputElement.PointerPressedEvent, OnSelectedWadsGridPointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+            wadGrid2.AddHandler(DragDrop.DragOverEvent, OnSelectedWadsDragOver, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+            wadGrid2.AddHandler(DragDrop.DropEvent, OnSelectedWadsDrop, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+            wadGrid2.AddHandler(DragDrop.DragLeaveEvent, OnSelectedWadsDragLeave, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
         }
         else
         {
@@ -376,6 +397,77 @@ public partial class MainWindow : Window
         await dlg.ShowDialog(this);
     }
 
+    private static void TryOpenPathInFileManager(string? targetPath, bool selectFile)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath))
+            return;
+
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                if (selectFile && File.Exists(targetPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"/select,\"{targetPath}\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    var folder = GetExistingDirectoryOrParent(targetPath);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{folder}\"",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var args = selectFile && File.Exists(targetPath)
+                    ? $"-R \"{targetPath}\""
+                    : $"\"{GetExistingDirectoryOrParent(targetPath)}\"";
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "open",
+                    Arguments = args,
+                    UseShellExecute = false
+                });
+            }
+            else
+            {
+                var folder = GetExistingDirectoryOrParent(targetPath);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = $"\"{folder}\"",
+                    UseShellExecute = false
+                });
+            }
+        }
+        catch
+        {
+            // Ignore failures when launching external file manager
+        }
+    }
+
+    private static string GetExistingDirectoryOrParent(string path)
+    {
+        if (Directory.Exists(path))
+            return path;
+
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            return directory;
+
+        return path;
+    }
+
     // Removal is handled by the ViewModel command bound in XAML.
 
     private void OnContextRenameClicked(object? sender, RoutedEventArgs e)
@@ -390,30 +482,10 @@ public partial class MainWindow : Window
     private void OnContextOpenLocationClicked(object? sender, RoutedEventArgs e)
     {
         var item = (this.FindControl<ListBox>("ExecutablesList")?.SelectedItem as ExecutableItem);
-        if (item == null || !File.Exists(item.Path))
+        if (item == null)
             return;
 
-        try
-        {
-            var dir = Path.GetDirectoryName(item.Path) ?? item.Path;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{item.Path}\"", UseShellExecute = true });
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                Process.Start(new ProcessStartInfo { FileName = "open", Arguments = $"-R \"{item.Path}\"", UseShellExecute = false });
-            }
-            else
-            {
-                // Linux/other: open the directory
-                Process.Start(new ProcessStartInfo { FileName = "xdg-open", Arguments = $"\"{dir}\"", UseShellExecute = false });
-            }
-        }
-        catch
-        {
-            // Silently fail if we can't open the location
-        }
+        TryOpenPathInFileManager(item.Path, selectFile: true);
     }
 
     private void OnContextDeleteClicked(object? sender, RoutedEventArgs e)
@@ -538,6 +610,278 @@ public partial class MainWindow : Window
         OnRemoveWadsClicked(sender, e);
     }
 
+    private async void OnAvailableWadsGridPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm)
+            return;
+
+        if (vm.SelectedProfile?.Locked == true)
+            return;
+
+        var point = e.GetCurrentPoint(grid);
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
+
+        var row = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>();
+        if (row?.DataContext is not SelectWadInfo wad)
+            return;
+
+        _draggedSelectedWad = null;
+        #pragma warning disable CS0618
+        var data = new DataObject();
+        data.Set(WadDragFormat, new WadDragPayload
+        {
+            Wad = wad,
+            FromSelectedList = false
+        });
+        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        #pragma warning restore CS0618
+    }
+
+    private void OnAvailableWadsDragOver(object? sender, DragEventArgs e)
+    {
+        if (!TryGetDragPayload(e, out var payload) || !payload.FromSelectedList)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm || vm.SelectedProfile?.Locked == true)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private void OnAvailableWadsDrop(object? sender, DragEventArgs e)
+    {
+        if (!TryGetDragPayload(e, out var payload) || !payload.FromSelectedList)
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm || vm.SelectedProfile?.Locked == true)
+            return;
+
+        if (!payload.Wad.IsSelected)
+            return;
+
+        vm.RemoveWadsFromItems(new List<SelectWadInfo> { payload.Wad });
+        ClearInsertionVisuals();
+        e.Handled = true;
+    }
+
+    private async void OnSelectedWadsGridPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm)
+            return;
+
+        if (vm.SelectedProfile?.Locked == true)
+            return;
+
+        var point = e.GetCurrentPoint(grid);
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
+
+        var row = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>();
+        if (row?.DataContext is not SelectWadInfo wad)
+            return;
+
+        _draggedSelectedWad = wad;
+        #pragma warning disable CS0618
+        var data = new DataObject();
+        data.Set(WadDragFormat, new WadDragPayload
+        {
+            Wad = wad,
+            FromSelectedList = true
+        });
+        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        #pragma warning restore CS0618
+        ClearInsertionVisuals();
+        _draggedSelectedWad = null;
+    }
+
+    private void OnSelectedWadsDragOver(object? sender, DragEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        if (!TryGetDragPayload(e, out _))
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm || vm.SelectedProfile?.Locked == true)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.Move;
+        e.Handled = true;
+
+        var row = ResolveRowFromDragEvent(grid, e);
+        if (row != null && row.DataContext is SelectWadInfo)
+        {
+            var relative = e.GetPosition(row);
+            var insertBefore = relative.Y <= row.Bounds.Height / 2;
+            ShowInsertionVisual(row, insertBefore);
+        }
+        else
+        {
+            ClearInsertionVisuals();
+        }
+    }
+
+    private void OnSelectedWadsDrop(object? sender, DragEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        if (!TryGetDragPayload(e, out var payload))
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm || vm.SelectedProfile?.Locked == true)
+            return;
+
+        var insertionIndex = CalculateInsertionIndex(vm, grid, e);
+        if (payload.FromSelectedList)
+        {
+            if (_draggedSelectedWad == null)
+                _draggedSelectedWad = payload.Wad;
+
+            vm.MoveSelectedWad(_draggedSelectedWad, insertionIndex);
+        }
+        else
+        {
+            vm.InsertWadIntoLoadOrder(payload.Wad, insertionIndex);
+        }
+
+        ClearInsertionVisuals();
+        _draggedSelectedWad = null;
+        e.Handled = true;
+    }
+
+    private void OnSelectedWadsDragLeave(object? sender, DragEventArgs e)
+    {
+        ClearInsertionVisuals();
+    }
+
+    private bool TryGetDragPayload(DragEventArgs e, out WadDragPayload payload)
+    {
+        #pragma warning disable CS0618
+        if (e.Data?.Get(WadDragFormat) is WadDragPayload info)
+        #pragma warning restore CS0618
+        {
+            payload = info;
+            return true;
+        }
+
+        payload = null!;
+        return false;
+    }
+
+    private int CalculateInsertionIndex(ViewModels.MainWindowViewModel vm, DataGrid grid, DragEventArgs e)
+    {
+        if (_currentInsertionRow?.DataContext is SelectWadInfo target)
+        {
+            var index = vm.FilteredSelectedWads.IndexOf(target);
+            if (index >= 0)
+            {
+                return _insertBeforeCurrentRow ? index : index + 1;
+            }
+        }
+
+        var fallbackRow = ResolveRowFromDragEvent(grid, e);
+        if (fallbackRow?.DataContext is SelectWadInfo fallbackTarget)
+        {
+            var fallbackIndex = vm.FilteredSelectedWads.IndexOf(fallbackTarget);
+            if (fallbackIndex >= 0)
+            {
+                var relative = e.GetPosition(fallbackRow);
+                var insertBefore = relative.Y <= fallbackRow.Bounds.Height / 2;
+                return insertBefore ? fallbackIndex : fallbackIndex + 1;
+            }
+        }
+
+        return vm.FilteredSelectedWads.Count;
+    }
+
+    private DataGridRow? ResolveRowFromDragEvent(DataGrid grid, DragEventArgs e)
+    {
+        var directRow = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>();
+        if (directRow != null)
+        {
+            return directRow;
+        }
+
+        var pointInGrid = e.GetPosition(grid);
+        if (grid.InputHitTest(pointInGrid) is Visual hitVisual)
+        {
+            var hitRow = hitVisual.FindAncestorOfType<DataGridRow>();
+            if (hitRow != null)
+            {
+                return hitRow;
+            }
+        }
+
+        var rowsPresenter = grid.GetVisualDescendants()
+            .OfType<DataGridRowsPresenter>()
+            .FirstOrDefault();
+
+        if (rowsPresenter == null || rowsPresenter.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var pointInPresenter = e.GetPosition(rowsPresenter);
+        foreach (var child in rowsPresenter.Children)
+        {
+            if (child is DataGridRow candidate)
+            {
+                if (pointInPresenter.Y <= candidate.Bounds.Bottom)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return rowsPresenter.Children
+            .OfType<DataGridRow>()
+            .LastOrDefault();
+    }
+
+    private void ShowInsertionVisual(DataGridRow row, bool insertBefore)
+    {
+        if (_currentInsertionRow != row)
+        {
+            ClearInsertionVisuals();
+            _currentInsertionRow = row;
+        }
+
+        _insertBeforeCurrentRow = insertBefore;
+        row.Classes.Set("insertion-before", insertBefore);
+        row.Classes.Set("insertion-after", !insertBefore);
+    }
+
+    private void ClearInsertionVisuals()
+    {
+        if (_currentInsertionRow != null)
+        {
+            _currentInsertionRow.Classes.Set("insertion-before", false);
+            _currentInsertionRow.Classes.Set("insertion-after", false);
+            _currentInsertionRow = null;
+        }
+    }
+
     private void OnAddWadsClicked(object? sender, RoutedEventArgs e)
     {
         // Block if profile is locked
@@ -612,6 +956,55 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnContextAddAvailableWadClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: SelectWadInfo wad })
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm)
+            return;
+
+        if (vm.SelectedProfile?.Locked == true)
+        {
+            _ = ShowPopup("Profile Locked", "Cannot modify WAD selection while profile is locked.");
+            return;
+        }
+
+        vm.AddWadsFromItems(new List<SelectWadInfo> { wad });
+    }
+
+    private void OnContextRemoveSelectedWadClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: SelectWadInfo wad })
+            return;
+
+        if (this.DataContext is not ViewModels.MainWindowViewModel vm)
+            return;
+
+        if (vm.SelectedProfile?.Locked == true)
+        {
+            _ = ShowPopup("Profile Locked", "Cannot modify WAD selection while profile is locked.");
+            return;
+        }
+
+        vm.RemoveWadsFromItems(new List<SelectWadInfo> { wad });
+    }
+
+    private void OnContextOpenWadLocationClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem)
+            return;
+
+        string? path = menuItem.DataContext switch
+        {
+            SelectWadInfo wad => wad.Path,
+            IWad iw => iw.Path,
+            _ => null
+        };
+
+        TryOpenPathInFileManager(path, selectFile: true);
+    }
+
     private void OnNewProfileClicked(object? sender, RoutedEventArgs e)
     {
         var textBox = new TextBox { Width = 360, Margin = new Thickness(0,0,0,8) };
@@ -684,6 +1077,140 @@ public partial class MainWindow : Window
                 vm.SelectedProfile = null;
             }
         }
+    }
+
+    private void OnRenameProfileMenuClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: Profile profile })
+            return;
+
+        if (this.DataContext is ViewModels.MainWindowViewModel vm)
+        {
+            vm.SelectedProfile = profile;
+            ShowRenameProfileDialog(profile);
+        }
+    }
+
+    private void OnContextRemoveProfileClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: Profile profile })
+            return;
+
+        if (this.DataContext is ViewModels.MainWindowViewModel vm)
+        {
+            vm.SelectedProfile = profile;
+            OnRemoveProfileClicked(sender, e);
+        }
+    }
+
+    private void OnExportProfileClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: Profile profile })
+            return;
+
+        if (this.DataContext is ViewModels.MainWindowViewModel vm)
+        {
+            vm.SelectedProfile = profile;
+            _ = vm.ExportProfileAsync(this);
+        }
+    }
+
+    private void OnMoveProfileToTopClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: Profile profile })
+            return;
+
+        if (this.DataContext is ViewModels.MainWindowViewModel vm)
+        {
+            MoveProfile(vm, profile, 0);
+        }
+    }
+
+    private void OnMoveProfileToBottomClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: Profile profile })
+            return;
+
+        if (this.DataContext is ViewModels.MainWindowViewModel vm && vm.Profiles.Count > 0)
+        {
+            MoveProfile(vm, profile, vm.Profiles.Count - 1);
+        }
+    }
+
+    private void MoveProfile(ViewModels.MainWindowViewModel vm, Profile profile, int targetIndex)
+    {
+        var currentIndex = vm.Profiles.IndexOf(profile);
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= vm.Profiles.Count || currentIndex == targetIndex)
+            return;
+
+        vm.Profiles.Move(currentIndex, targetIndex);
+        vm.SelectedProfile = profile;
+    }
+
+    private void ShowRenameProfileDialog(Profile profile)
+    {
+        var textBox = new TextBox { Width = 360, Margin = new Thickness(0,0,0,8), Text = profile.Name };
+        var okButton = new Button { Content = "OK", Width = 80, Margin = new Thickness(0,0,8,0) };
+        var cancelButton = new Button { Content = "Cancel", Width = 80 };
+
+        var dlg = new Window
+        {
+            Title = "Rename Profile",
+            Width = 400,
+            SizeToContent = SizeToContent.Height,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(10),
+                Children =
+                {
+                    new TextBlock { Text = "Enter a new name for the profile:", Margin = new Thickness(0,0,0,8) },
+                    textBox,
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Children =
+                        {
+                            okButton,
+                            cancelButton
+                        }
+                    }
+                }
+            }
+        };
+
+        okButton.Click += (_, _) =>
+        {
+            var newName = (textBox.Text ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(newName))
+            {
+                // Get the VM
+                if (this.DataContext is not ViewModels.MainWindowViewModel vm)
+                {
+                    dlg.Close();
+                    return;
+                }
+                // Check for a save folder with the old Profile Name, and rename it.
+                if(vm.EnsureSavesDirectoryExists()){
+                    var oldPath = vm.GetSaveFolder(profile.Name);
+                    var newPath = vm.GetSaveFolder(newName);
+                    // If Folder exists, and names differ, rename
+                    if(Directory.Exists(oldPath) && !oldPath.Equals(newPath, StringComparison.OrdinalIgnoreCase)){
+                        try{
+                            Directory.Move(oldPath, newPath);
+                        }catch(Exception ex){
+                            Console.WriteLine($"Error renaming save folder from '{oldPath}' to '{newPath}': {ex.Message}");
+                        }
+                    }
+                }
+                profile.Name = newName;
+                dlg.Close();
+            }
+        };
+
+        cancelButton.Click += (_, _) => dlg.Close();
+
+        dlg.Show();
     }
 
     private async void CheckDataDirectoriesOnStartup()
