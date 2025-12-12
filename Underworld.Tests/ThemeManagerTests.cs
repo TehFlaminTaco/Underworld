@@ -9,6 +9,7 @@ namespace Underworld.Tests;
 /// <summary>
 /// Tests for the JSON-driven ThemeManager implementation.
 /// </summary>
+[Collection("Non-Parallel Collection")]
 public class ThemeManagerTests
 {
     private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "dark");

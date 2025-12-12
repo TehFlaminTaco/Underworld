@@ -104,10 +104,9 @@ dotnet run --project Underworld/Underworld.csproj
 
 ```bash
 # Run all tests
-dotnet test Underworld.Tests/Underworld.Tests.csproj && \
-dotnet test Underworld.ViewModelTests/Underworld.ViewModelTests.csproj
+dotnet test Underworld.Tests/Underworld.Tests.csproj
 
-# 21 tests total (18 ViewModel tests + 3 Manager tests)
+# ~100 tests total (managers + view models)
 ```
 
 ### Project Structure
@@ -119,8 +118,7 @@ Underworld/
 │   ├── ViewModels/                # ViewModels with ObservableObject
 │   ├── Views/                     # Avalonia XAML views
 │   └── Assets/                    # Icons and resources
-├── Underworld.Tests/              # Unit tests for managers
-├── Underworld.ViewModelTests/     # ViewModel integration tests
+├── Underworld.Tests/              # Unit + ViewModel tests (xUnit)
 ```
 
 ### Technology Stack

@@ -10,6 +10,7 @@ namespace Underworld.ViewModelTests;
 /// <summary>
 /// Integration tests for theme functionality in ViewModels
 /// </summary>
+[Collection("Non-Parallel Collection")]
 public class ThemeIntegrationTests
 {
     private static readonly ConfigEntry<string> _testThemeConfig = Config.Setup("Theme", "dark");

@@ -1,3 +1,3 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Underworld.ViewModelTests")]
+[assembly: InternalsVisibleTo("Underworld.Tests")]

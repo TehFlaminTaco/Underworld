@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <InternalsVisibleTo>Underworld.ViewModelTests</InternalsVisibleTo>
+    <InternalsVisibleTo>Underworld.Tests</InternalsVisibleTo>
     <ApplicationIcon>Assets/underworld-logo.ico</ApplicationIcon>
     <Version>1.4.3</Version>
     <AssemblyVersion>1.4.3</AssemblyVersion>
@@ -22,11 +22,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Exclude tests folder placed under the project to avoid including test files in the app build -->
-    <Compile Remove="Underworld.ViewModelTests\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
