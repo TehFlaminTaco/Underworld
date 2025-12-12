@@ -49,6 +49,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         AddExecutablesCommand = new RelayCommand(p => { _ = AddExecutablesFromWindowAsync(p); });
         ExportProfileCommand = new RelayCommand(p => { _ = ExportProfileAsync(p); }, _ => SelectedProfile != null);
         ImportProfileCommand = new RelayCommand(p => { _ = ImportProfileAsync(p); });
+        PreferencesCommand = new RelayCommand(_ => OpenPreferences());
         SetDarkThemeCommand = new RelayCommand(_ =>
         {
             Console.WriteLine("SetDarkThemeCommand executed!");
@@ -206,7 +207,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static string COMMAND_LINE_ARGUMENTS = string.Empty;
+    public static string COMMAND_LINE_ARGUMENTS { get; private set;} = string.Empty;
     private string _commandLineArguments = string.Empty;
 
     /// <summary>
@@ -227,7 +228,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static Profile? SELECTED_PROFILE;
+    public static Profile? SELECTED_PROFILE {get; private set;}
     private Profile? _selectedProfile;
 
     /// <summary>
@@ -310,6 +311,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Gets the command to import a profile from a JSON file.
     /// </summary>
     public ICommand ImportProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to open the preferences dialog.
+    /// </summary>
+    public ICommand PreferencesCommand { get; }
 
     /// <summary>
     /// Gets the command to set the dark theme.
@@ -396,6 +402,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         return report;
+    }
+
+    public static UserPreferences UserPreferences { get; set; } = UserPreferences.Load();
+    private void OpenPreferences()
+    {
+        Console.WriteLine("[Preferences] Preferences command invoked (stub)");
+        var window = Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow
+            : null;
+        if(window is not MainWindow mainWindow)return;
+        UserPreferences.ShowPreferencesWindow(mainWindow);
     }
 
     /// <summary>
@@ -1357,7 +1374,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <param name="okText">The text for the OK button.</param>
     /// <param name="cancelText">The text for the Cancel button.</param>
     /// <returns>True if OK was clicked, false if Cancel was clicked.</returns>
-    public Task<bool> ShowConfirmDialogue(string title, string text, string okText = "OK", string cancelText = "Cancel")
+    public virtual Task<bool> ShowConfirmDialogue(string title, string text, string okText = "OK", string cancelText = "Cancel")
     {
         TaskCompletionSource<bool> tcs = new();
         var okButton = new Button { Content = okText, Width = 80, Margin = new Thickness(0,0,8,0) };
@@ -1390,6 +1407,67 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         };
         okButton.Click += (_, _) =>
         {
+            tcs.SetResult(true);
+            dlg.Close();
+        };
+        cancelButton.Click += (_, _) =>
+        {
+            tcs.SetResult(false);
+            dlg.Close();
+        };
+        dlg.Show();
+
+        return tcs.Task;
+    }
+
+    /// <summary>
+    /// Shows a confirmation dialog with customizable title, message, and button text.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="text">The message to display.</param>
+    /// <param name="setDontShowAgain">Called when the user chooses to not show the dialog again.</param>
+    /// <param name="okText">The text for the OK button.</param>
+    /// <param name="cancelText">The text for the Cancel button.</param>
+    /// <returns>True if OK was clicked, false if Cancel was clicked.</returns>
+    public virtual Task<bool> ShowConfirmDialogue(string title, string text, Action setDontShowAgain, string okText = "OK", string cancelText = "Cancel")
+    {
+        TaskCompletionSource<bool> tcs = new();
+        var okButton = new Button { Content = okText, Width = 80, Margin = new Thickness(0,0,8,0) };
+        var cancelButton = new Button { Content = cancelText, Width = 80 };
+        var checkbox = new CheckBox { Content = "Don't show this again (Can be renabled from Preferences)", Margin = new Thickness(0,0,0,8), IsChecked = false };
+
+        // Basic text edit dialog to name a new profile
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 400,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(10),
+                Children =
+                {
+                    new TextBlock { Text = text, Margin = new Thickness(0,0,0,8) },
+                    checkbox,
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Children =
+                        {
+                            okButton,
+                            cancelButton
+                        }
+                    }
+                }
+            }
+        };
+        okButton.Click += (_, _) =>
+        {
+            if (checkbox.IsChecked == true)
+            {
+                setDontShowAgain();
+            }
             tcs.SetResult(true);
             dlg.Close();
         };
@@ -1480,7 +1558,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Prompts the user if no profile is selected.
     /// </summary>
     /// <returns>The save folder name, or null if the user cancelled.</returns>
-    private async Task<string?> DetermineSaveFolder()
+    internal async Task<string?> DetermineSaveFolder()
     {
         if (SELECTED_PROFILE is not null)
         {
@@ -1490,11 +1568,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return saveFolder;
         }
 
-        var proceed = await ShowConfirmDialogue(
-            "Run Game",
-            "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?",
-            "Yes",
-            "Cancel");
+        var proceed = true;
+        if (UserPreferences.ShowNoProfileLaunchWarning)
+            proceed = await ShowConfirmDialogue(
+                "Run Game",
+                "You have not selected a profile! Setting a profile ensures seperate tracking of saves and modlists. Are you sure you wish to proceed?",
+                () => {
+                    UserPreferences.ShowNoProfileLaunchWarning = false;
+                    UserPreferences.Save();
+                },
+                "Yes",
+                "Cancel");
 
         return proceed ? "_unsorted" : null;
     }

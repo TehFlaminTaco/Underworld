@@ -127,6 +127,15 @@ public static class Config
     }
 
     /// <summary>
+    /// Reloads configuration data from disk, replacing the current in-memory cache.
+    /// Useful for tests that need to simulate a new process without restarting the AppDomain.
+    /// </summary>
+    public static void ReloadFromDisk()
+    {
+        LoadConfig();
+    }
+
+    /// <summary>
     /// Creates a configuration entry for the specified key with a default value.
     /// </summary>
     /// <typeparam name="T">The type of value to store</typeparam>

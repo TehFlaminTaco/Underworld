@@ -37,6 +37,8 @@ public partial class MainWindow : Window
         public bool FromSelectedList { get; init; }
     }
 
+    // Stays true once the user initiates a close so a second close attempt force-exits without prompting.
+    bool ReadyToDie = false;
     public MainWindow()
     {
         // Wire the view model BEFORE InitializeComponent so bindings can resolve
@@ -47,7 +49,57 @@ public partial class MainWindow : Window
 
         // Setup selection tracking on window load
         this.Loaded += MainWindow_Loaded;
+        this.Closing += (_, e) => {
+            if (ReadyToDie) return; // Second attempt is treated as "force close".
+            Console.WriteLine("=== MainWindow Closing event called ===");
+            e.Cancel = true;
+            _ = AskToCloseAsync();
+        };
         this.Closed += (_, _) => _vm?.Dispose();
+    }
+
+    public async Task AskToCloseAsync()
+    {
+        ReadyToDie = true;
+        var vm = this.DataContext as MainWindowViewModel;
+        if (vm == null){
+            (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            return;
+        }
+        if (!MainWindowViewModel.UserPreferences.ShowNoProfileExitWarning){
+            (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            return;
+        }
+        if (MainWindowViewModel.SELECTED_PROFILE != null)
+        {
+            (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            return;
+        }
+        // Check if the user has any wads selected, or a arguments added
+        // If they do, they might want to save it to a profile.
+        bool shouldShowDialog = MainWindowViewModel.AllWads.Any(c=>c.IsSelected) || !string.IsNullOrWhiteSpace(MainWindowViewModel.COMMAND_LINE_ARGUMENTS);
+        if (shouldShowDialog)
+        {
+            bool result = await vm.ShowConfirmDialogue(
+                "Exit Underworld",
+                "You have selected WADs or command-line arguments that are not saved to a profile. Are you sure you want to exit without saving?",
+                () => { MainWindowViewModel.UserPreferences.ShowNoProfileExitWarning = false; MainWindowViewModel.UserPreferences.Save(); },
+                "Exit",
+                "Cancel"
+            );
+            if (result)
+            {
+                (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            }
+            else
+            {
+                ReadyToDie = false;
+            }
+        }
+        else
+        {
+            (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+        }
     }
 
     private void MainWindow_Loaded(object? sender, RoutedEventArgs e)
@@ -259,7 +311,7 @@ public partial class MainWindow : Window
     private void OnExitClicked(object? sender, RoutedEventArgs e)
     {
         Console.WriteLine("=== OnExitClicked CALLED ===");
-        (App.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+        _ = AskToCloseAsync();
     }
 
     private void OnMenuPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)

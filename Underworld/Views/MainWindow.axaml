@@ -82,6 +82,7 @@
                         <MenuItem Header="_Reimport Profiles" Click="OnReimportProfilesClicked" />
                         <Separator />
                         <MenuItem Header="_Manage Data Folders..." Click="OnManageDataFoldersClicked" />
+                        <MenuItem Header="_Preferences" Command="{Binding PreferencesCommand}" />
                         <MenuItem Header="Clear WAD Cache" Click="OnClearCacheClicked" />
                         <Separator />
                         <MenuItem Header="E_xit" Click="OnExitClicked" />

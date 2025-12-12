@@ -7,6 +7,7 @@ using Underworld.ViewModels;
 using Underworld.Models;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Underworld.ViewModelTests
 {
@@ -157,11 +158,81 @@ namespace Underworld.ViewModelTests
             }
         }
 
+        [Fact]
+        public async Task DetermineSaveFolder_SkipsPromptWhenPreferenceDisabled()
+        {
+            var vm = new TestableMainWindowViewModel();
+            MainWindowViewModel.UserPreferences.ShowNoProfileLaunchWarning = false;
+
+            var folder = await vm.DetermineSaveFolder();
+
+            Assert.Equal("_unsorted", folder);
+            Assert.Equal(0, vm.ConfirmCalls);
+        }
+
+        [Fact]
+        public async Task DetermineSaveFolder_RespectsConfirmationResult()
+        {
+            var vm = new TestableMainWindowViewModel { ConfirmResult = false };
+            MainWindowViewModel.UserPreferences.ShowNoProfileLaunchWarning = true;
+
+            var folder = await vm.DetermineSaveFolder();
+
+            Assert.Null(folder);
+            Assert.Equal(1, vm.ConfirmCalls);
+            Assert.Equal("Run Game", vm.LastConfirmTitle);
+        }
+
+        [Fact]
+        public async Task DetermineSaveFolder_DontShowAgainDisablesFutureWarning()
+        {
+            var vm = new TestableMainWindowViewModel { SimulateDontShowAgain = true };
+            MainWindowViewModel.UserPreferences.ShowNoProfileLaunchWarning = true;
+
+            var folder = await vm.DetermineSaveFolder();
+
+            Assert.Equal("_unsorted", folder);
+            Assert.False(MainWindowViewModel.UserPreferences.ShowNoProfileLaunchWarning);
+            Assert.Equal(1, vm.ConfirmCalls);
+        }
+
+        private sealed class TestableMainWindowViewModel : MainWindowViewModel
+        {
+            public TestableMainWindowViewModel()
+            {
+                // Ensure each test starts without a selected profile or lingering state.
+                SelectedProfile = null;
+                Profiles.Clear();
+                MainWindowViewModel.UserPreferences = new UserPreferences();
+            }
+
+            public int ConfirmCalls { get; private set; }
+            public bool ConfirmResult { get; set; } = true;
+            public bool SimulateDontShowAgain { get; set; }
+            public string LastConfirmTitle { get; private set; } = string.Empty;
+            public string LastConfirmMessage { get; private set; } = string.Empty;
+
+            public override Task<bool> ShowConfirmDialogue(string title, string text, Action setDontShowAgain, string okText = "OK", string cancelText = "Cancel")
+            {
+                ConfirmCalls++;
+                LastConfirmTitle = title;
+                LastConfirmMessage = text;
+                if (SimulateDontShowAgain)
+                {
+                    setDontShowAgain();
+                }
+                return Task.FromResult(ConfirmResult);
+            }
+        }
+
         public void Dispose()
         {
             // Clean up after each test
             var configPath = Path.Combine(AppContext.BaseDirectory, "Underworld.config.json");
             try { if (File.Exists(configPath)) File.Delete(configPath); } catch { }
+
+            // Ensure subsequent tests get a fresh copy of the global preferences singleton.
+            MainWindowViewModel.UserPreferences = UserPreferences.Load();
         }
     }
 }
