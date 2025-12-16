@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly ExecutableManager _manager = new ExecutableManager();
     private readonly ConfigEntry<List<ExecutableItem>> _executablesConfig;
     private readonly ConfigEntry<List<Profile>> _profilesConfig;
+    private readonly ConfigEntry<MiniLauncherOptions> _miniLauncherDefaultsConfig;
 
     private readonly ConfigEntry<string> _lastSelectedExecutablePathConfig;
     private readonly ConfigEntry<string> _lastSelectedIWADPathConfig;
@@ -34,6 +35,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _executablesConfig = Config.Setup("executables", new List<ExecutableItem>());
         _profilesConfig = Config.Setup("profiles", new List<Profile>());
+        _miniLauncherDefaultsConfig = Config.Setup("miniLauncherDefaults", new MiniLauncherOptions());
         _lastSelectedExecutablePathConfig = Config.Setup("lastSelectedExecutablePath", string.Empty);
         _lastSelectedIWADPathConfig = Config.Setup("lastSelectedIWADPath", string.Empty);
 
@@ -119,6 +121,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var lastPath = _lastSelectedIWADPathConfig.Get();
             SelectedIWAD = IWADs.FirstOrDefault(i => i.Path == lastPath);
         }
+
+        UserPreferencesChanged += OnUserPreferencesChanged;
     }
 
     public ObservableCollection<ExecutableItem> Executables { get; } = new ObservableCollection<ExecutableItem>();
@@ -141,6 +145,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private bool _suppressSelectionChanged;
     private readonly List<string> _manualSelectedWadOrder = new();
+
+    private void OnUserPreferencesChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(PreferredRunButtonLabel));
+        OnPropertyChanged(nameof(CanRunPreferredLaunch));
+    }
 
     private void OnWadFilesChanged(object? sender, WadDirectoryChangedEventArgs e)
     {
@@ -182,6 +192,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _selectedExecutable, value))
             {
                 (RemoveSelectedExecutableCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                NotifyPreferredRunStateChanged();
             }
         }
     }
@@ -203,7 +214,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 SelectedProfile.PreferredIWAD = value?.Path ?? string.Empty;
             }
             _lastSelectedIWADPathConfig.Set(value?.Path ?? string.Empty);
-            SetProperty(ref _selectedIWad, value);
+            if (SetProperty(ref _selectedIWad, value))
+            {
+                NotifyPreferredRunStateChanged();
+            }
         }
     }
 
@@ -283,6 +297,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             UpdateAvailableWadsFilter();
             UpdateSelectedWadsFilter();
             MirrorProfileOrderIntoManualList();
+            NotifyPreferredRunStateChanged();
         }
     }
 
@@ -300,7 +315,51 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Gets the command to launch the game.
     /// Enabled only when both an executable and IWAD are selected.
     /// </summary>
-    public ICommand RunGameCommand => new RelayCommand(_ => RunGame(), _ => SelectedExecutable != null && SelectedIWAD != null);
+    public ICommand RunGameCommand => new RelayCommand(_ => RunGame(), _ => CanRunGame());
+
+    /// <summary>
+    /// Represents an item inside the Run Game flyout menu.
+    /// </summary>
+    public abstract record RunMenuEntry
+    {
+        public sealed record RunMenuCommand(string Header, Action Execute, Func<bool>? CanExecute = null) : RunMenuEntry;
+        public sealed record RunMenuSeparator : RunMenuEntry;
+    }
+
+    public string PreferredRunButtonLabel => UserPreferences.PreferredLaunchMethod switch
+    {
+        UserPreferences.LaunchPreference.Run => "Run Game",
+        UserPreferences.LaunchPreference.LoadLastSave => "Continue Game",
+        UserPreferences.LaunchPreference.ShowMiniLauncher => "Show Mini-Launcher",
+        _ => "Run Game"
+    };
+
+    public bool CanRunPreferredLaunch => UserPreferences.PreferredLaunchMethod switch
+    {
+        UserPreferences.LaunchPreference.Run => CanRunGame(),
+        UserPreferences.LaunchPreference.LoadLastSave => CanContinueGame(),
+        UserPreferences.LaunchPreference.ShowMiniLauncher => true,
+        _ => CanRunGame()
+    };
+
+    public void ExecutePreferredLaunch()
+    {
+        switch (UserPreferences.PreferredLaunchMethod)
+        {
+            case UserPreferences.LaunchPreference.Run:
+                RunGame();
+                break;
+            case UserPreferences.LaunchPreference.LoadLastSave:
+                ContinueMostRecentGame();
+                break;
+            case UserPreferences.LaunchPreference.ShowMiniLauncher:
+                OpenMiniLauncher();
+                break;
+            default:
+                RunGame();
+                break;
+        }
+    }
 
     /// <summary>
     /// Gets the command to export the current profile to a JSON file.
@@ -404,7 +463,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return report;
     }
 
-    public static UserPreferences UserPreferences { get; set; } = UserPreferences.Load();
+    private static UserPreferences _userPreferences = UserPreferences.Load();
+    public static event EventHandler? UserPreferencesChanged;
+
+    public static UserPreferences UserPreferences
+    {
+        get => _userPreferences;
+        set
+        {
+            _userPreferences = value ?? throw new ArgumentNullException(nameof(value));
+            UserPreferencesChanged?.Invoke(null, EventArgs.Empty);
+        }
+    }
     private void OpenPreferences()
     {
         Console.WriteLine("[Preferences] Preferences command invoked (stub)");
@@ -1111,6 +1181,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         AllWads.Clear();
         IWADs.Clear();
+        WadLists.UpdateGlobalDictionary();
 
         var wads = WadLists.GetAllWads();
         foreach (var wadPath in wads)
@@ -1498,6 +1569,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async void RunGame()
     {
+        await RunGameInternalAsync(null);
+    }
+
+    public async Task RunGameWithMiniLauncherAsync(MiniLauncherOptions options)
+    {
+        if (options == null)
+            throw new ArgumentNullException(nameof(options));
+
+        await RunGameInternalAsync(null, options);
+    }
+
+    public async void RunGameFromSave(string saveFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(saveFilePath))
+            return;
+
+        if (!File.Exists(saveFilePath))
+        {
+            ShowFailDialogue("Selected save file could not be found.");
+            return;
+        }
+
+        await RunGameInternalAsync(saveFilePath);
+    }
+
+    private async Task RunGameInternalAsync(string? saveFileToLoad, MiniLauncherOptions? customOptions = null)
+    {
         if (SELECTED_EXECUTABLE == null)
         {
             ShowFailDialogue("No executable selected.");
@@ -1519,11 +1617,158 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (!CreateSaveFolderIfNeeded(saveFolder))
             return;
 
-        var commandLineArgs = BuildGameCommandLineArgs(saveFolder);
+        var commandLineArgs = BuildGameCommandLineArgs(saveFolder, saveFileToLoad, customOptions);
         if (commandLineArgs == null)
             return;
 
         LaunchGameProcess(commandLineArgs);
+    }
+
+    public void ContinueMostRecentGame()
+    {
+        var recentSave = GetRecentSaveFiles().FirstOrDefault();
+        if (recentSave == null)
+        {
+            RunGame();
+            return;
+        }
+
+        RunGameFromSave(recentSave.FullName);
+    }
+
+    internal MiniLauncherViewModel CreateMiniLauncherViewModel()
+    {
+        var initialOptions = GetMiniLauncherDefaultsSnapshot();
+        return new MiniLauncherViewModel(
+            RunGameWithMiniLauncherAsync,
+            GetLevels,
+            initialOptions,
+            SaveMiniLauncherDefaults);
+    }
+
+    private MiniLauncherOptions GetMiniLauncherDefaultsSnapshot()
+    {
+        var source = SELECTED_PROFILE?.MiniLauncherDefaults ?? _miniLauncherDefaultsConfig.Get();
+        return (source ?? new MiniLauncherOptions()).Clone();
+    }
+
+    private void SaveMiniLauncherDefaults(MiniLauncherOptions options)
+    {
+        var snapshot = (options ?? new MiniLauncherOptions()).Clone();
+
+        if (SELECTED_PROFILE is not null)
+        {
+            SELECTED_PROFILE.MiniLauncherDefaults = snapshot;
+            TrySaveProfiles();
+        }
+        else
+        {
+            _miniLauncherDefaultsConfig.Set(snapshot);
+        }
+    }
+
+    private IEnumerable<LevelEntry> GetLevels()
+    {
+        if(SELECTED_IWAD is null)
+            return Array.Empty<LevelEntry>();
+        var wadInfo = WadLists.GetWadInfo(SELECTED_IWAD.Path);
+        List<LevelEntry> maplumps = wadInfo?.MapIDs?.Select(c=>new LevelEntry { LumpName = c, DisplayName = c })?.ToList() ?? new();
+        var mapNames = wadInfo?.MapNames?.ToDictionary() ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // For each Wad in Load Order, try and overwrite mapnames
+        var selectedWads = GetSelectedWadsInLoadOrder();
+        foreach(var wad in selectedWads){
+            var info = WadLists.GetWadInfo(wad.Path);
+            if(info?.MapNames is not null){
+                foreach(var kvp in info.MapNames){
+                    mapNames[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+        // Build final list of map names
+        for(int i = 0; i < maplumps.Count; i++){
+            var lump = maplumps[i].LumpName;
+            if(mapNames.TryGetValue(lump, out var name)){
+                maplumps[i] = new LevelEntry { LumpName = lump, DisplayName = name };
+            }
+        }
+        return maplumps;
+    }
+
+    public void OpenMiniLauncher()
+    {
+        var owner = GetMainWindow();
+        var launcher = new MiniLauncherDialog(this);
+
+        if (owner != null)
+        {
+            launcher.Show(owner);
+        }
+        else
+        {
+            launcher.Show();
+        }
+    }
+
+    public IEnumerable<RunMenuEntry> BuildRunMenuEntries()
+    {
+        var recentSaves = GetRecentSaveFiles();
+
+        yield return new RunMenuEntry.RunMenuCommand("Launch Game", () => RunGame(), () => CanRunGame());
+        yield return new RunMenuEntry.RunMenuCommand("Open Mini-Launcher", () => OpenMiniLauncher());
+        yield return new RunMenuEntry.RunMenuCommand(
+            "Continue Game",
+            () => ContinueMostRecentGame(),
+            () => CanRunGame());
+
+        if (recentSaves.Count == 0)
+            yield break;
+
+        yield return new RunMenuEntry.RunMenuSeparator();
+
+        foreach (var save in recentSaves)
+        {
+            var header = $"{save.Name} ({save.LastWriteTime:g})";
+            var savePath = save.FullName;
+            yield return new RunMenuEntry.RunMenuCommand(header, () => RunGameFromSave(savePath));
+        }
+    }
+
+    private IReadOnlyList<FileInfo> GetRecentSaveFiles()
+    {
+        var folderPath = GetCurrentSaveDirectoryPath();
+        if (!Directory.Exists(folderPath))
+        {
+            return Array.Empty<FileInfo>();
+        }
+
+        try
+        {
+            return new DirectoryInfo(folderPath)
+                .EnumerateFiles("*", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Take(10)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Failed to enumerate saves in '{folderPath}': {ex.Message}");
+            return Array.Empty<FileInfo>();
+        }
+    }
+
+    private bool CanContinueGame()
+    {
+        return CanRunGame() && GetRecentSaveFiles().Count > 0;
+    }
+
+    private void NotifyPreferredRunStateChanged()
+    {
+        OnPropertyChanged(nameof(CanRunPreferredLaunch));
+    }
+
+    private bool CanRunGame()
+    {
+        return SelectedExecutable != null && SelectedIWAD != null;
     }
 
     /// <summary>
@@ -1547,10 +1792,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public string GetSaveFolder(string profileName){
+    public string GetSaveFolder(string profileName)
+    {
+        var sanitized = SanitizeSaveFolderName(profileName);
+        return $"./saves/{sanitized}";
+    }
+
+    private static string SanitizeSaveFolderName(string name)
+    {
+        var sanitized = name;
         foreach (var c in Path.GetInvalidFileNameChars())
-            profileName = profileName.Replace(c, '-');
-        return $"./saves/{profileName}";
+        {
+            sanitized = sanitized.Replace(c, '-');
+        }
+
+        return sanitized;
+    }
+
+    private string GetCurrentSaveFolderName()
+    {
+        return SanitizeSaveFolderName(SELECTED_PROFILE?.Name ?? "_unsorted");
+    }
+
+    private string GetCurrentSaveDirectoryPath()
+    {
+        return Path.Combine(".", "saves", GetCurrentSaveFolderName());
     }
 
     /// <summary>
@@ -1562,9 +1828,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (SELECTED_PROFILE is not null)
         {
-            var saveFolder = SELECTED_PROFILE.Name;
-            foreach (var c in Path.GetInvalidFileNameChars())
-                saveFolder = saveFolder.Replace(c, '-');
+            var saveFolder = SanitizeSaveFolderName(SELECTED_PROFILE.Name);
             return saveFolder;
         }
 
@@ -1580,7 +1844,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 "Yes",
                 "Cancel");
 
-        return proceed ? "_unsorted" : null;
+        return proceed ? SanitizeSaveFolderName("_unsorted") : null;
     }
 
     /// <summary>
@@ -1611,7 +1875,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name=\"saveFolder\">The save folder name (not full path).</param>
     /// <returns>The complete command-line arguments string, or null if no WADs are selected.</returns>
-    private string? BuildGameCommandLineArgs(string saveFolder)
+    private string? BuildGameCommandLineArgs(string saveFolder, string? saveFileToLoad, MiniLauncherOptions? customOptions)
     {
         string args = $"-iwad \"{SELECTED_IWAD!.Path}\"";
 
@@ -1628,6 +1892,67 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (!string.IsNullOrWhiteSpace(COMMAND_LINE_ARGUMENTS))
         {
             args += $" {COMMAND_LINE_ARGUMENTS}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(saveFileToLoad))
+        {
+            var relativeToFolder = Path.GetRelativePath(fullSavePath, saveFileToLoad);
+            args += $" -loadgame \"{relativeToFolder}\"";
+        }
+
+        if (customOptions != null)
+        {
+            if (customOptions.Skill > 0)
+            {
+                args += $" -skill {customOptions.Skill}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(customOptions.InitialLevel))
+            {
+                args += $" +map {customOptions.InitialLevel}";
+            }
+
+            if (customOptions.NoMonsters)
+            {
+                args += " -nomonsters";
+            }
+
+            if (customOptions.FastMonsters)
+            {
+                args += " -fast";
+            }
+
+            if (customOptions.RespawnMonsters)
+            {
+                args += " -respawn";
+            }
+
+            if (customOptions.EnableMultiplayer)
+            {
+                args += " -net";
+
+                if (customOptions.HostGame)
+                {
+                    var hostSlots = customOptions.HostPlayerCount <= 0 ? 1 : customOptions.HostPlayerCount;
+                    args += $" -host {hostSlots}";
+
+                    if (!string.IsNullOrWhiteSpace(customOptions.HostPort))
+                    {
+                        args += $" -port {customOptions.HostPort}";
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(customOptions.IPAddress))
+                {
+                    if (!string.IsNullOrWhiteSpace(customOptions.Port))
+                    {
+                        args += $" -join {customOptions.IPAddress}:{customOptions.Port}";
+                    }
+                    else
+                    {
+                        args += $" -join {customOptions.IPAddress}";
+                    }
+                }
+            }
         }
 
         return args;
@@ -1663,6 +1988,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             proc.BeginOutputReadLine();
             proc.ErrorDataReceived += (sender, e) => { if (e.Data != null) Console.WriteLine($"ERR: {e.Data}"); };
             proc.BeginErrorReadLine();
+            if (UserPreferences.ExitLauncherOnRun)
+            {
+                Environment.Exit(0);
+            }
         }
         catch (Exception ex)
         {
@@ -1672,6 +2001,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        UserPreferencesChanged -= OnUserPreferencesChanged;
         WadDirectoryWatcher.WadFilesChanged -= OnWadFilesChanged;
         foreach (var wad in AllWads)
         {

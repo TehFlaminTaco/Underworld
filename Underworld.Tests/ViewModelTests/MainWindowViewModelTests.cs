@@ -196,6 +196,142 @@ namespace Underworld.ViewModelTests
             Assert.Equal(1, vm.ConfirmCalls);
         }
 
+        [Fact]
+        public void BuildRunMenuEntries_OrdersBaselineOptions()
+        {
+            var vm = new TestableMainWindowViewModel();
+
+            var options = vm.BuildRunMenuEntries()
+                .OfType<MainWindowViewModel.RunMenuEntry.RunMenuCommand>()
+                .ToList();
+
+            Assert.Contains(options, o => o.Header == "Launch Game");
+            Assert.Contains(options, o => o.Header == "Open Mini-Launcher");
+            var continueOption = Assert.Single(options.Where(o => o.Header == "Continue Game"));
+            Assert.False(continueOption.CanExecute?.Invoke() ?? true);
+        }
+
+        [Fact]
+        public void BuildRunMenuEntries_IncludesRecentSaves()
+        {
+            var vm = new TestableMainWindowViewModel();
+            var savesRoot = Path.Combine(AppContext.BaseDirectory, "saves", "_unsorted");
+            Directory.CreateDirectory(savesRoot);
+
+            var oldest = CreateSaveFile(savesRoot, "save_old.zds", DateTime.Now.AddHours(-2));
+            var newest = CreateSaveFile(savesRoot, "save_new.zds", DateTime.Now);
+
+            var entries = vm.BuildRunMenuEntries().ToList();
+
+            Assert.Contains(entries, e => e is MainWindowViewModel.RunMenuEntry.RunMenuSeparator);
+
+            var headers = entries
+                .OfType<MainWindowViewModel.RunMenuEntry.RunMenuCommand>()
+                .Select(o => o.Header)
+                .ToList();
+
+            Assert.Contains(headers, h => h.Contains(Path.GetFileName(newest)));
+            Assert.Contains(headers, h => h.Contains(Path.GetFileName(oldest)));
+        }
+
+        [Fact]
+        public void PreferredRunButtonLabel_TracksLaunchPreference()
+        {
+            var vm = new TestableMainWindowViewModel();
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.Run
+            };
+            Assert.Equal("Run Game", vm.PreferredRunButtonLabel);
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.LoadLastSave
+            };
+            Assert.Equal("Continue Game", vm.PreferredRunButtonLabel);
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.ShowMiniLauncher
+            };
+            Assert.Equal("Show Mini-Launcher", vm.PreferredRunButtonLabel);
+        }
+
+        [Fact]
+        public void CanRunPreferredLaunch_FollowsPreferenceRequirements()
+        {
+            var vm = new TestableMainWindowViewModel();
+            PrepareForStandardLaunch(vm);
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.Run
+            };
+            Assert.True(vm.CanRunPreferredLaunch);
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.LoadLastSave
+            };
+            Assert.False(vm.CanRunPreferredLaunch);
+
+            var savesRoot = Path.Combine(AppContext.BaseDirectory, "saves", "_unsorted");
+            Directory.CreateDirectory(savesRoot);
+            CreateSaveFile(savesRoot, "save_autogen.zds", DateTime.Now);
+
+            Assert.True(vm.CanRunPreferredLaunch);
+
+            MainWindowViewModel.UserPreferences = new UserPreferences
+            {
+                PreferredLaunchMethod = UserPreferences.LaunchPreference.ShowMiniLauncher
+            };
+            Assert.True(vm.CanRunPreferredLaunch);
+        }
+
+        [Fact]
+        public void MiniLauncherDefaults_PersistPerProfile()
+        {
+            var vm = new TestableMainWindowViewModel();
+            var profile = new Profile { Name = "Test" };
+            vm.Profiles.Add(profile);
+            vm.SelectedProfile = profile;
+
+            var launcherVm = vm.CreateMiniLauncherViewModel();
+            launcherVm.IsMultiplayerEnabled = true;
+            launcherVm.HostGame = true;
+            launcherVm.HostPort = "9000";
+            launcherVm.HostPlayerSlots = "6";
+            launcherVm.NoMonsters = true;
+            launcherVm.PersistState();
+
+            Assert.True(profile.MiniLauncherDefaults.EnableMultiplayer);
+            Assert.True(profile.MiniLauncherDefaults.HostGame);
+            Assert.Equal("9000", profile.MiniLauncherDefaults.HostPort);
+
+            var hydratedVm = vm.CreateMiniLauncherViewModel();
+            Assert.True(hydratedVm.IsMultiplayerEnabled);
+            Assert.True(hydratedVm.HostGame);
+            Assert.Equal("9000", hydratedVm.HostPort);
+            Assert.Equal("6", hydratedVm.HostPlayerSlots);
+        }
+
+        [Fact]
+        public void MiniLauncherDefaults_FallBackToGlobalConfig()
+        {
+            var vm = new TestableMainWindowViewModel();
+            vm.SelectedProfile = null;
+
+            var first = vm.CreateMiniLauncherViewModel();
+            first.IsMultiplayerEnabled = true;
+            first.Port = "7000";
+            first.PersistState();
+
+            var hydrated = vm.CreateMiniLauncherViewModel();
+            Assert.True(hydrated.IsMultiplayerEnabled);
+            Assert.Equal("7000", hydrated.Port);
+        }
+
         private sealed class TestableMainWindowViewModel : MainWindowViewModel
         {
             public TestableMainWindowViewModel()
@@ -231,8 +367,38 @@ namespace Underworld.ViewModelTests
             var configPath = Path.Combine(AppContext.BaseDirectory, "Underworld.config.json");
             try { if (File.Exists(configPath)) File.Delete(configPath); } catch { }
 
+            var savesPath = Path.Combine(AppContext.BaseDirectory, "saves");
+            try { if (Directory.Exists(savesPath)) Directory.Delete(savesPath, true); } catch { }
+
             // Ensure subsequent tests get a fresh copy of the global preferences singleton.
             MainWindowViewModel.UserPreferences = UserPreferences.Load();
+        }
+
+        private static string CreateSaveFile(string directory, string fileName, DateTime timestamp)
+        {
+            var fullPath = Path.Combine(directory, fileName);
+            File.WriteAllText(fullPath, "test");
+            File.SetLastWriteTime(fullPath, timestamp);
+            return fullPath;
+        }
+
+        private static void PrepareForStandardLaunch(MainWindowViewModel vm)
+        {
+            var executable = new ExecutableItem
+            {
+                DisplayName = "Test Executable",
+                Path = "/tmp/test-exec.exe"
+            };
+            vm.Executables.Add(executable);
+            vm.SelectedExecutable = executable;
+
+            var iwad = new IWad
+            {
+                DisplayName = "Test IWAD",
+                Path = "/tmp/test.wad"
+            };
+            vm.IWADs.Add(iwad);
+            vm.SelectedIWAD = iwad;
         }
     }
 }

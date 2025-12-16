@@ -1,0 +1,134 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Underworld.ViewModels"
+        x:Class="Underworld.Views.MiniLauncherDialog"
+        x:DataType="vm:MiniLauncherViewModel"
+        Title="Mini Launcher"
+        Width="420"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource PrimaryTextBrush}">
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+        </Style>
+    </Window.Styles>
+    <Border Classes="Card" Padding="16">
+        <Grid RowDefinitions="*,Auto" RowSpacing="16">
+            <StackPanel Spacing="12">
+                <StackPanel>
+                    <TextBlock Text="Skill" FontWeight="Bold"/>
+                    <ComboBox ItemsSource="{Binding Skills}"
+                              SelectedItem="{Binding SelectedSkill}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="Initial Level" FontWeight="Bold"/>
+                    <ComboBox ItemsSource="{Binding AvailableLevels}"
+                              SelectedItem="{Binding SelectedLevel}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="(Stubbed list for now)" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <CheckBox Content="Enable Multiplayer"
+                              IsChecked="{Binding IsMultiplayerEnabled}"/>
+
+                    <StackPanel Margin="12,0,0,0"
+                                Spacing="8"
+                                IsVisible="{Binding IsMultiplayerEnabled}">
+                        <CheckBox Content="Host this game"
+                                  IsChecked="{Binding HostGame}"/>
+
+                        <StackPanel Spacing="4"
+                                    IsVisible="{Binding IsJoinMode}">
+                            <TextBlock Text="Join a game" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="*,8,Auto">
+                                <TextBox Text="{Binding IPAddress}"
+                                         Watermark="IP Address"
+                                         IsEnabled="{Binding IsJoinMode}"/>
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding Port}"
+                                         Watermark="Port"
+                                         Width="96"
+                                         IsEnabled="{Binding IsJoinMode}"/>
+                            </Grid>
+                            <TextBlock Text="Connect to an existing host by specifying their address and port."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4"
+                                    IsVisible="{Binding IsHostMode}">
+                            <TextBlock Text="Host settings" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="Auto,Auto,8,Auto,Auto">
+                                <TextBlock Text="Port:"
+                                           VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding HostPort}"
+                                         Watermark="Server Port"
+                                         Width="96"
+                                         IsEnabled="{Binding IsHostMode}"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="Player Slots:"
+                                           VerticalAlignment="Center"
+                                           Margin="12,0,4,0"/>
+                                <TextBox Grid.Column="4"
+                                         Text="{Binding HostPlayerSlots}"
+                                         Watermark="Player Slots"
+                                         Width="80"
+                                         IsEnabled="{Binding IsHostMode}"/>
+                            </Grid>
+                            <TextBlock Text="Choose the port and how many players your lobby allows."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="Gameplay Flags" FontWeight="Bold"/>
+                    <UniformGrid Columns="2" Rows="2" Margin="0,6,0,0">
+                        <CheckBox Content="No Monsters" IsChecked="{Binding NoMonsters}"/>
+                        <CheckBox Content="Fast Monsters" IsChecked="{Binding FastMonsters}"/>
+                        <CheckBox Content="Respawn Monsters" IsChecked="{Binding RespawnMonsters}"/>
+                    </UniformGrid>
+                </StackPanel>
+            </StackPanel>
+
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Right">
+                <Button Content="Cancel"
+                        Command="{Binding CancelCommand}"/>
+                <Button Grid.Column="1"
+                        Classes="Primary"
+                        Content="Run"
+                        Command="{Binding RunCommand}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

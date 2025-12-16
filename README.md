@@ -2,7 +2,7 @@
 
 A cross-platform DooM launcher for managing source ports, IWADs, mods, and game profiles with dedicated save directories.
 
-![Version](https://img.shields.io/badge/version-1.4.4-blue)
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 
 ---

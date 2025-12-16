@@ -343,6 +343,27 @@
         <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentOrangeBrush}"/>
         </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+        </Style>
+
+        <Style Selector="ComboBoxItem">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+
+        <Style Selector="ComboBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SelectionBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SelectionForegroundBrush}"/>
+        </Style>
+
+        <Style Selector="ComboBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource SelectionBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SelectionForegroundBrush}"/>
+        </Style>
         
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>

@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
+using HarfBuzzSharp;
+using Tmds.DBus.Protocol;
 using Underworld.ViewModels;
 
 namespace Underworld.Models;
@@ -13,12 +16,27 @@ namespace Underworld.Models;
 /// </summary>
 public static class WadLists
 {
+    public static string[] EPISODIC_MAPS = [
+        "E1M1", "E1M2", "E1M3", "E1M4", "E1M5", "E1M6", "E1M7", "E1M8", "E1M9",
+        "E2M1", "E2M2", "E2M3", "E2M4", "E2M5", "E2M6", "E2M7", "E2M8", "E2M9",
+        "E3M1", "E3M2", "E3M3", "E3M4", "E3M5", "E3M6", "E3M7", "E3M8", "E3M9",
+        "E4M1", "E4M2", "E4M3", "E4M4", "E4M5", "E4M6", "E4M7", "E4M8", "E4M9"
+    ];
+
+    public static string[] NON_EPISODIC_MAPS = [
+        "MAP01", "MAP02", "MAP03", "MAP04", "MAP05", "MAP06", "MAP07", "MAP08", "MAP09",
+        "MAP10", "MAP11", "MAP12", "MAP13", "MAP14", "MAP15", "MAP16", "MAP17", "MAP18",
+        "MAP19", "MAP20", "MAP21", "MAP22", "MAP23", "MAP24", "MAP25", "MAP26", "MAP27",
+        "MAP28", "MAP29", "MAP30"
+    ];
+
+    public static Dictionary<string, string> GLOBAL_LANGUAGE = new();
     private const string ZScriptPattern = "zscript.*";
     
     /// <summary>
     /// Valid file extensions for WAD files.
     /// </summary>
-    public static readonly string[]                                                              ValidWADFiles = { ".wad", ".pk3", ".zip", ".pk7" };
+    public static readonly string[] ValidWADFiles = { ".wad", ".pk3", ".zip", ".pk7" };
 
     /// <summary>
     /// Determines whether a filesystem path could refer to a trackable WAD asset.
@@ -36,6 +54,40 @@ public static class WadLists
         }
 
         return ValidWADFiles.Contains(extension.ToLowerInvariant());
+    }
+
+    public static Dictionary<string, string>? GetAllMapNames(string wadPath){
+        // Generate a VFS for the given WAD path
+        try {
+            VirtualFileSystem vfs = VirtualFileSystem.CreateVFSFromPath(wadPath);
+            // The hard part is finding MAPINFO or equivalent data
+            // In order of preference, we need:
+            // ZMAPINFO
+            // MAPINFO
+            // UMAPINFO
+            // EMAPINFO
+            // We're willfully ignoring other formats for now
+            
+            // First, ZMAPINFO or MAPINFO
+            var mapInfo = vfs.GetLump("ZMAPINFO") ?? vfs.GetLump("MAPINFO");
+            if (mapInfo != null)
+            {
+                return MapInfoParser.ParseMapInfo(vfs, mapInfo);
+            }
+            var uMapInfo = vfs.GetLump("UMAPINFO");
+            if (uMapInfo != null)
+            {
+                return MapInfoParser.ParseUMapInfo(vfs, uMapInfo);
+            }
+            var eMapInfo = vfs.GetLump("EMAPINFO");
+            if (eMapInfo != null)
+            {
+                return MapInfoParser.ParseEMapInfo(vfs, eMapInfo);
+            }
+        }catch(Exception ex){
+            Console.Error.WriteLine($"Error parsing map info from '{wadPath}': {ex.Message}");
+        }
+        return null;
     }
 
     /// <summary>
@@ -97,6 +149,7 @@ public static class WadLists
     /// </summary>
     public static void GetNewWadInfos()
     {
+        UpdateGlobalDictionary();
         var wads = GetAllWads();
         foreach (var wad in wads)
         {
@@ -191,6 +244,22 @@ public static class WadLists
             Console.Error.WriteLine($"Could not read {GameSupportArchive} for IWAD names: {ex.Message}");
             return new Dictionary<string, string>();
         }
+    }
+
+    /// <summary>
+    /// Updates the global language dictionary from game_support.pk3
+    /// </summary>
+    public static void UpdateGlobalDictionary() {
+        var gameSupportPath = FindGameSupportArchive();
+        if (gameSupportPath == null)
+        {
+            Console.Error.WriteLine($"No {GameSupportArchive} found in data directories.");
+            return;
+        }
+        // There's probably a better place to do this, but this is the best _time_ wise place to do this.
+        var newLang = LanguageParser.ParseLanguage(VirtualFileSystem.CreateVFSFromPath(gameSupportPath));
+        GLOBAL_LANGUAGE = newLang ?? GLOBAL_LANGUAGE;
+
     }
 
     /// <summary>
@@ -367,6 +436,9 @@ public static class WadLists
         return removed;
     }
 
+
+    private static readonly Regex Doom2MAPRegex = new(@"^MAP(\d{2})$", RegexOptions.Compiled);
+    private static readonly Regex DoomEpiMAPRegex = new(@"^E(\d)M(\d)$", RegexOptions.Compiled);
     /// <summary>
     /// Analyzes a WAD file or directory to determine its properties.
     /// </summary>
@@ -374,84 +446,187 @@ public static class WadLists
     {
         var extension = Path.GetExtension(path).ToLowerInvariant();
         
-        var (isPatch, hasMaps) = extension switch
+        var (isPatch, hasMaps, isEpisodic) = extension switch
         {
             "" => AnalyzeDirectory(path),
             ".wad" => AnalyzeWadArchive(path),
             ".pk3" or ".zip" or ".pk7" => AnalyzeZipArchive(path),
-            _ => (true, false) // Unknown type - assume PWAD
+            _ => (true, false, null) // Unknown type - assume PWAD
         };
 
         var displayName = DetermineDisplayName(path, isPatch);
+        Dictionary<string, string>? mapNames = null;
+        if (hasMaps) mapNames = GetAllMapNames(path);
+        if(mapNames is {Count: 0}) mapNames = null;
+
+        List<string>? MapLumps = null;
+        if(!isPatch){
+            var vfs = VirtualFileSystem.CreateVFSFromPath(path);
+            MapLumps = vfs.Files.Where(c=>EPISODIC_MAPS.Contains(Path.GetFileNameWithoutExtension(c.Key).ToUpperInvariant()) || 
+                                        NON_EPISODIC_MAPS.Contains(Path.GetFileNameWithoutExtension(c.Key).ToUpperInvariant()))
+                               .Select(c=>Path.GetFileNameWithoutExtension(c.Key).ToUpperInvariant())
+                               .Distinct()
+                               .ToList();
+            if (mapNames is null){
+                if(displayName.ToLower().Contains("evilution")){
+                    // If TNT. Get the map digit in such that MAP_01 becomes THUSTR_1 and then get the language entry for that.
+                    // If no language entry exists, use MAP_01.
+                    mapNames = MapLumps.ToDictionary(
+                        m => m,
+                        m => {
+                            var match = Doom2MAPRegex.Match(m);
+                            if(match.Success){
+                                var mapNum = match.Groups[1].Value;
+                                var langKey = $"THUSTR_{int.Parse(mapNum)}";
+                                if(GLOBAL_LANGUAGE.TryGetValue(langKey, out var lookedUpValue)){
+                                    return lookedUpValue;
+                                }
+                            }
+                            return m;
+                        }
+                    );
+                }else if(displayName.ToLower().Contains("plutonia")){
+                    // If Plutonia. Get the map digit in such that MAP_01 becomes PLUSTR_1 and then get the language entry for that.
+                    // If no language entry exists, use MAP_01.
+                    mapNames = MapLumps.ToDictionary(
+                        m => m,
+                        m => {
+                            var match = Doom2MAPRegex.Match(m);
+                            if(match.Success){
+                                var mapNum = match.Groups[1].Value;
+                                var langKey = $"PHUSTR_{int.Parse(mapNum)}";
+                                if(GLOBAL_LANGUAGE.TryGetValue(langKey, out var lookedUpValue)){
+                                    return lookedUpValue;
+                                }
+                            }
+                            return m;
+                        }
+                    );
+                }else if(isEpisodic == true){
+                    // Episodic IWAD. Map names are E1M1, E1M2, etc.
+                    mapNames = MapLumps.ToDictionary(
+                        m => m,
+                        m => {
+                            var match = DoomEpiMAPRegex.Match(m);
+                            if(match.Success){
+                                var epiNum = match.Groups[1].Value;
+                                var mapNum = match.Groups[2].Value;
+                                var langKey = $"HUSTR_E{epiNum}M{mapNum}";
+                                if(GLOBAL_LANGUAGE.TryGetValue(langKey, out var lookedUpValue)){
+                                    return lookedUpValue;
+                                }
+                            }
+                            return m;
+                        }
+                    );
+                }else if(isEpisodic == false){
+                    // Non-episodic IWAD. Map names are MAP01, MAP02, etc.
+                    mapNames = MapLumps.ToDictionary(
+                        m => m,
+                        m => {
+                            var match = Doom2MAPRegex.Match(m);
+                            if(match.Success){
+                                var mapNum = match.Groups[1].Value;
+                                var langKey = $"HUSTR_{int.Parse(mapNum)}";
+                                if(GLOBAL_LANGUAGE.TryGetValue(langKey, out var lookedUpValue)){
+                                    return lookedUpValue;
+                                }
+                            }
+                            return m;
+                        }
+                    );
+                }else{
+                    // Unknown IWAD type. Just use the map lumps as-is.
+                    mapNames = MapLumps.ToDictionary(m => m, m => m);
+                }
+            }
+        }
+
 
         return new WadInfo
         {
             Path = path,
             Name = displayName,
             IsPatch = isPatch,
-            HasMaps = hasMaps
+            HasMaps = hasMaps,
+            MapNames = mapNames,
+            IsEpisodic = isEpisodic,
+            MapIDs = MapLumps
         };
     }
 
     /// <summary>
     /// Analyzes a directory (folder-based mod) for map content.
     /// </summary>
-    private static (bool IsPatch, bool HasMaps) AnalyzeDirectory(string path)
+    private static (bool IsPatch, bool HasMaps, bool? IsEpisodic) AnalyzeDirectory(string path)
     {
         var mapsDir = Path.Combine(path, "maps");
         if (!Directory.Exists(mapsDir))
         {
-            return (true, false);
+            return (true, false, null);
         }
 
         try
         {
+            var wadEntries = Directory.GetFileSystemEntries(path, "*.wad", SearchOption.AllDirectories);
+            bool hasMaps = wadEntries.Any(entry => {
+                using var fs = new FileStream(entry, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var br = new BinaryReader(fs);
+                var (_, hasMaps, _) = AnalyzeWadArchive(br, fs);
+                return hasMaps;
+            });
             var mapEntries = Directory.GetFileSystemEntries(mapsDir, "*", SearchOption.TopDirectoryOnly);
-            bool hasMaps = mapEntries.Any(entry => IsStartMap(Path.GetFileNameWithoutExtension(entry)));
-            return (true, hasMaps);
+            if(!hasMaps)
+                hasMaps = mapEntries.Any(entry => IsStartMap(Path.GetFileNameWithoutExtension(entry), out var _));
+            return (true, hasMaps, null);
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Could not read maps directory in '{path}': {ex.Message}");
-            return (true, false);
+            return (true, false, null);
         }
     }
 
     /// <summary>
     /// Analyzes a .wad file by reading its header and directory.
     /// </summary>
-    private static (bool IsPatch, bool HasMaps) AnalyzeWadArchive(string path)
+    private static (bool IsPatch, bool HasMaps, bool? IsEpisodic) AnalyzeWadArchive(string path)
     {
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var br = new BinaryReader(fs);
             
-            var header = new string(br.ReadChars(4));
-            
-            if (header == "IWAD")
-            {
-                return (false, true); // IWADs always have maps
-            }
-            
-            // PWAD - check for map lumps
-            var numLumps = br.ReadInt32();
-            var dirOffset = br.ReadInt32();
-            
-            bool hasMaps = SearchWadDirectory(br, fs, dirOffset, numLumps);
-            return (true, hasMaps);
+            return AnalyzeWadArchive(br, fs);
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Could not read WAD file '{path}': {ex.Message}");
-            return (true, false);
+            return (true, false, null);
         }
     }
 
+    private static (bool IsPatch, bool HasMaps, bool? IsEpisodic) AnalyzeWadArchive(BinaryReader br, Stream fs){
+            var header = new string(br.ReadChars(4));
+            
+            // check for map lumps
+            var numLumps = br.ReadInt32();
+            var dirOffset = br.ReadInt32();
+            
+            var (hasMaps, isEpisodic) = SearchWadDirectory(br, fs, dirOffset, numLumps);
+
+            if (header == "IWAD")
+            {
+                
+                return (false, true, isEpisodic); // IWADs always have maps
+            }
+
+            return (true, hasMaps, null);
+    }
     /// <summary>
     /// Searches a WAD directory for map markers.
     /// </summary>
-    private static bool SearchWadDirectory(BinaryReader reader, FileStream stream, int dirOffset, int numLumps)
+    private static (bool hasMaps, bool? episodic) SearchWadDirectory(BinaryReader reader, Stream stream, int dirOffset, int numLumps)
     {
         stream.Seek(dirOffset, SeekOrigin.Begin);
         
@@ -461,46 +636,76 @@ public static class WadLists
             reader.ReadInt32(); // lumpSize
             var lumpName = new string(reader.ReadChars(8)).TrimEnd('\0').ToUpperInvariant();
             
-            if (IsStartMap(lumpName))
+            if (IsStartMap(lumpName, out bool? isEpisodic))
             {
-                return true;
+                return (true, isEpisodic);
             }
         }
         
-        return false;
+        return (false, null);
     }
 
     /// <summary>
     /// Analyzes a ZIP/PK3/PK7 archive for map content.
     /// </summary>
-    private static (bool IsPatch, bool HasMaps) AnalyzeZipArchive(string path)
+    private static (bool IsPatch, bool HasMaps, bool? IsEpisodic) AnalyzeZipArchive(string path)
     {
         try
         {
             using var archive = ZipFile.OpenRead(path);
             
+            var wadEntries = archive.Entries
+                .Where(e => e.FullName.EndsWith(".wad", StringComparison.OrdinalIgnoreCase));
+            bool hasMaps = false;
+            foreach (var entry in wadEntries){
+                // Hack entry.Open() to produce a seekable stream
+                // Load it into memory first to make a MemoryStream
+                using var fs = entry.Open();
+                using var ms = new MemoryStream();
+                fs.CopyTo(ms);
+                ms.Seek(0,SeekOrigin.Begin);
+                using var br = new BinaryReader(ms);
+                var (_, wadHasMaps, _) = AnalyzeWadArchive(br, ms);
+                if (wadHasMaps){
+                    hasMaps = true;
+                    break;
+                }
+            }
+
             var mapEntries = archive.Entries
                 .Where(e => e.FullName.StartsWith("maps/", StringComparison.OrdinalIgnoreCase));
             
-            bool hasMaps = mapEntries.Any(entry => 
-                IsStartMap(Path.GetFileNameWithoutExtension(entry.Name)));
+            if(!hasMaps)
+                hasMaps = mapEntries.Any(entry => 
+                    IsStartMap(Path.GetFileNameWithoutExtension(entry.Name), out _));
             
-            return (true, hasMaps);
+            return (true, hasMaps, null);
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Could not read archive file '{path}': {ex.Message}");
-            return (true, false);
+            return (true, false, null);
         }
     }
 
     /// <summary>
     /// Checks if a map name represents a starting map (MAP01 or E1M1).
     /// </summary>
-    private static bool IsStartMap(string mapName)
+    private static bool IsStartMap(string mapName, out bool? isEpisodic)
     {
         var upperName = mapName.ToUpperInvariant();
-        return upperName == "MAP01" || upperName == "E1M1";
+        if (upperName == "MAP01"){
+            isEpisodic = false;
+            return true;
+        }
+        else if (upperName == "E1M1"){
+            isEpisodic = true;
+            return true;
+        }
+        else{
+            isEpisodic = null;
+            return false;
+        }
     }
 
     /// <summary>
@@ -563,6 +768,24 @@ public class WadInfo
     /// Gets or sets whether this WAD contains map data.
     /// </summary>
     public bool HasMaps { get; set; }
+
+    /// <summary>
+    /// Gets or sets a dictionary of map names contained in this WAD.
+    /// Key is the map identifier (e.g. "MAP01"), value is the display name.
+    /// May be null if no map info could be determined.
+    /// </summary>
+    public Dictionary<string, string>? MapNames { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this WAD uses episodic map structure (E1M1).
+    /// True if episodic, false if not, null if pwad or unknown.
+    /// </summary>
+    public bool? IsEpisodic { get; set; }
+
+    /// <summary>
+    /// Gets or sets a list of map lumps contained in this IWAD.
+    /// </summary>
+    public List<string>? MapIDs {get; set;}
 
     /// <summary>
     /// Gets a SelectWadInfo instance for UI binding.

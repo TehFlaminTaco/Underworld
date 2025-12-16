@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private SelectWadInfo? _draggedSelectedWad;
     private DataGridRow? _currentInsertionRow;
     private bool _insertBeforeCurrentRow;
+    private readonly MenuFlyout _runOptionsFlyout = new();
 
     private sealed class WadDragPayload
     {
@@ -369,7 +370,54 @@ public partial class MainWindow : Window
     {
         if (_vm != null)
         {
-            _vm.RunGameCommand.Execute(null);
+            _vm.ExecutePreferredLaunch();
+        }
+    }
+
+    private void OnRunOptionsButtonClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_vm == null || sender is not Control control)
+        {
+            return;
+        }
+
+        PopulateRunOptionsFlyout(_runOptionsFlyout);
+        _runOptionsFlyout.ShowAt(control);
+    }
+
+    private void PopulateRunOptionsFlyout(MenuFlyout flyout)
+    {
+        flyout.Items.Clear();
+
+        foreach (var entry in _vm!.BuildRunMenuEntries())
+        {
+            switch (entry)
+            {
+                case MainWindowViewModel.RunMenuEntry.RunMenuCommand commandEntry:
+                    var menuCommand = new RelayCommand(
+                        _ => commandEntry.Execute(),
+                        _ => commandEntry.CanExecute?.Invoke() ?? true);
+
+                    flyout.Items.Add(new MenuItem
+                    {
+                        Header = commandEntry.Header,
+                        Command = menuCommand
+                    });
+                    break;
+
+                case MainWindowViewModel.RunMenuEntry.RunMenuSeparator:
+                    flyout.Items.Add(new Separator());
+                    break;
+            }
+        }
+
+        if (flyout.Items.Count == 0)
+        {
+            flyout.Items.Add(new MenuItem
+            {
+                Header = "No run options available",
+                IsEnabled = false
+            });
         }
     }
 

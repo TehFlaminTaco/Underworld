@@ -24,5 +24,8 @@ public partial class Profile : ObservableObject
     [ObservableProperty]
     public string commandLineArguments = string.Empty;
 
+    [ObservableProperty]
+    public MiniLauncherOptions miniLauncherDefaults = new MiniLauncherOptions();
+
     public override string ToString() => Name;
 }

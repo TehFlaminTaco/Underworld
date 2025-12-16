@@ -7,9 +7,9 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InternalsVisibleTo>Underworld.Tests</InternalsVisibleTo>
     <ApplicationIcon>Assets/underworld-logo.ico</ApplicationIcon>
-    <Version>1.4.4</Version>
-    <AssemblyVersion>1.4.4</AssemblyVersion>
-    <FileVersion>1.4.4</FileVersion>
+    <Version>1.5.0</Version>
+    <AssemblyVersion>1.5.0</AssemblyVersion>
+    <FileVersion>1.5.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,5 +36,6 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
   </ItemGroup>
 </Project>
