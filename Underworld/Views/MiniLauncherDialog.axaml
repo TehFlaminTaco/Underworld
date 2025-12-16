@@ -52,7 +52,6 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <TextBlock Text="(Stubbed list for now)" FontSize="11" Foreground="{DynamicResource MutedTextBrush}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="6">
